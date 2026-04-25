@@ -1,0 +1,27 @@
+# Build
+build/
+cmake-build-*/
+
+# Test artifacts
+*.ulg
+telemetry.json
+
+# Editor / IDE
+.idea/
+.vscode/
+*.user
+
+# Compiled objects
+*.o
+*.a
+*.so
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code project-local config
+.claude/
+
+# MAVLink is a third-party clone, not owned by this repo
+third_party/mavlink-c-library/

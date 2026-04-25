@@ -1,0 +1,31 @@
+{
+  "dt": 0.004,
+  "mavlink_host": "127.0.0.1",
+  "mavlink_port": 14560,
+  "json_log_path": "telemetry.json",
+  "ulog_path": "telemetry.ulg",
+
+  "quad_params": {
+    "mass": 1.5,
+    "arm_length": 0.225,
+    "k_thrust": 9.18e-6,
+    "k_drag": 1.35e-7,
+    "aero_drag": 0.25,
+    "inertia_diag": [0.029, 0.029, 0.055],
+    "max_motor_speed": 838.0
+  },
+
+  "wind_params": {
+    "mean_ned": [0.0, 0.0, 0.0],
+    "turbulence_std": 0.5,
+    "gust_probability": 0.005,
+    "gust_magnitude": 3.0
+  },
+
+  "gps_params": {
+    "lat_ref_deg": 47.397742,
+    "lon_ref_deg": 8.545594,
+    "alt_ref_m": 488.0,
+    "update_rate_hz": 5.0
+  }
+}
