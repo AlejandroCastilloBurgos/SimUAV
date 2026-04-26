@@ -92,7 +92,8 @@ void MAVLinkBridge::sendHilSensor(const sensors::IMUSample&  imu,
         0.0f,                        // diff_pressure (not modelled)
         baro.altitude_m,
         baro.temperature_c,
-        kAllSensors
+        kAllSensors,
+        0  // id: sensor instance 0
     );
     sendMessage(msg);
 }
@@ -122,7 +123,8 @@ void MAVLinkBridge::sendHilGps(const sensors::GPSSample& gps) {
         static_cast<int16_t>(gps.velocity_d * 100),
         UINT16_MAX,  // course over ground (unknown)
         gps.num_sats,
-        0  // id (single GPS)
+        0,          // id: single GPS instance
+        UINT16_MAX  // yaw: unknown
     );
     sendMessage(msg);
 }
@@ -148,10 +150,9 @@ bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
                 // Map normalised [0,1] PWM output → motor angular speed in rad/s.
                 // Linear mapping: 0 → 0 rad/s, 1 → max_motor_speed.
                 // Actual ESC calibration tables should replace this.
-                constexpr double kMaxSpeed = 838.0; // rad/s, must match QuadrotorParams
                 for (int i = 0; i < 4; ++i) {
                     const double pwm = std::max(0.0f, std::min(1.0f, act.controls[i]));
-                    out_speeds[i] = pwm * kMaxSpeed;
+                    out_speeds[i] = pwm * params_.max_motor_speed;
                 }
                 got_actuators = true;
             }
