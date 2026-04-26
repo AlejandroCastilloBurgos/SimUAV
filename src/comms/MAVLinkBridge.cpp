@@ -147,18 +147,24 @@ bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
                 mavlink_hil_actuator_controls_t act{};
                 mavlink_msg_hil_actuator_controls_decode(&msg, &act);
 
-                // Map normalised [0,1] PWM output → motor angular speed in rad/s.
-                // Linear mapping: 0 → 0 rad/s, 1 → max_motor_speed.
-                // Actual ESC calibration tables should replace this.
                 for (int i = 0; i < 4; ++i) {
-                    const double pwm = std::max(0.0f, std::min(1.0f, act.controls[i]));
-                    out_speeds[i] = pwm * params_.max_motor_speed;
+                    out_speeds[i] = escToSpeed(
+                        static_cast<double>(act.controls[i]),
+                        params_.max_motor_speed,
+                        params_.motor_spin_min,
+                        params_.esc_exponent);
                 }
                 got_actuators = true;
             }
         }
     }
     return got_actuators;
+}
+
+double MAVLinkBridge::escToSpeed(double throttle, double max_motor_speed,
+                                  double motor_spin_min, double exponent) {
+    const double t = std::max(0.0, std::min(1.0, throttle));
+    return motor_spin_min + (max_motor_speed - motor_spin_min) * std::pow(t, exponent);
 }
 
 }  // namespace simuav::comms

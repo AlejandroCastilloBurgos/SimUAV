@@ -19,6 +19,8 @@ Simulator::Simulator(SimConfig config)
         bp.remote_host     = config_.mavlink_host;
         bp.remote_port     = config_.mavlink_port;
         bp.max_motor_speed = config_.quad_params.max_motor_speed;
+        bp.esc_exponent    = config_.quad_params.esc_exponent;
+        bp.motor_spin_min  = config_.quad_params.motor_spin_min;
         return bp;
     }())
     , json_log_(config_.json_log_path)

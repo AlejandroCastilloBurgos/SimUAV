@@ -12,7 +12,9 @@
     "k_drag": 1.35e-7,
     "aero_drag": 0.25,
     "inertia_diag": [0.029, 0.029, 0.055],
-    "max_motor_speed": 838.0
+    "max_motor_speed": 838.0,
+    "esc_exponent": 0.5,
+    "motor_spin_min": 0.0
   },
 
   "wind_params": {

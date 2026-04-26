@@ -20,6 +20,8 @@ struct BridgeParams {
     uint8_t     system_id{1};
     uint8_t     component_id{MAV_COMP_ID_AUTOPILOT1};
     double      max_motor_speed{838.0};   // rad/s — must match QuadrotorParams
+    double      esc_exponent{0.5};        // power-law exponent for throttle→speed curve
+    double      motor_spin_min{0.0};      // rad/s — idle speed at zero throttle
 };
 
 // Non-blocking UDP bridge between the simulator and drone firmware.
@@ -48,6 +50,11 @@ public:
     // Drains the receive buffer. Returns true if new actuator data was read.
     // out_speeds: motor angular speeds in rad/s (indices match QuadrotorModel).
     bool receiveActuators(std::array<double, 4>& out_speeds);
+
+    // Maps normalised throttle [0,1] → rad/s using a power-law ESC curve.
+    // ω = motor_spin_min + (max_motor_speed − motor_spin_min) × clamp(throttle,0,1)^exponent
+    static double escToSpeed(double throttle, double max_motor_speed,
+                             double motor_spin_min, double exponent);
 
 private:
     void sendMessage(const mavlink_message_t& msg);

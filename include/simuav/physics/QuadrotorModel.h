@@ -29,6 +29,8 @@ struct QuadrotorParams {
     // Diagonal inertia tensor [Ixx, Iyy, Izz] (kg·m²)
     Eigen::Vector3d inertia_diag{0.029, 0.029, 0.055};
     double max_motor_speed{838.0};  // rad/s (~8 000 RPM)
+    double esc_exponent{0.5};       // throttle→speed power law: 0.5 = thrust-linear, 1.0 = speed-linear
+    double motor_spin_min{0.0};     // rad/s — motor speed at zero throttle (idle)
 };
 
 // Full rigid-body state expressed in NED world frame.
