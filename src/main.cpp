@@ -19,8 +19,12 @@ void onSignal(int) {
 int main(int argc, char* argv[]) {
     // Resolve config path: --config <path> > config/default.json > hardcoded defaults
     std::string config_path;
-    for (int i = 1; i < argc - 1; ++i) {
+    for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--config") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "--config requires a path argument\n");
+                return EXIT_FAILURE;
+            }
             config_path = argv[i + 1];
             break;
         }

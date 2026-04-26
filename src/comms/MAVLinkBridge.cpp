@@ -150,10 +150,9 @@ bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
                 // Map normalised [0,1] PWM output → motor angular speed in rad/s.
                 // Linear mapping: 0 → 0 rad/s, 1 → max_motor_speed.
                 // Actual ESC calibration tables should replace this.
-                constexpr double kMaxSpeed = 838.0; // rad/s, must match QuadrotorParams
                 for (int i = 0; i < 4; ++i) {
                     const double pwm = std::max(0.0f, std::min(1.0f, act.controls[i]));
-                    out_speeds[i] = pwm * kMaxSpeed;
+                    out_speeds[i] = pwm * params_.max_motor_speed;
                 }
                 got_actuators = true;
             }

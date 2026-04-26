@@ -19,6 +19,7 @@ struct BridgeParams {
     uint16_t    local_port{14561};        // we bind here
     uint8_t     system_id{1};
     uint8_t     component_id{MAV_COMP_ID_AUTOPILOT1};
+    double      max_motor_speed{838.0};   // rad/s — must match QuadrotorParams
 };
 
 // Non-blocking UDP bridge between the simulator and drone firmware.
