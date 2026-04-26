@@ -34,6 +34,26 @@ TEST(IMU, AccelNearGravityAtRest) {
     EXPECT_NEAR(sample.accel_body.z(), -9.80665, 1e-3);
 }
 
+TEST(IMU, HoverAccelFromPhysicsModelIsNearG) {
+    // Verifies the fix for the accel_world=0 stub: after running the physics
+    // model at hover speed, lastAccelWorld() fed into the IMU must produce
+    // specific force magnitude ≈ g on body -Z (level attitude).
+    physics::QuadrotorModel model;
+    const double w = std::sqrt((physics::QuadrotorParams{}.mass * 9.80665) /
+                               (4.0 * physics::QuadrotorParams{}.k_thrust));
+    const std::array<double, physics::kNumMotors> motors{w, w, w, w};
+
+    // Settle for 0.5 s so velocity/drag reach equilibrium
+    for (int i = 0; i < 125; ++i)
+        model.integrate(motors, 0.004);
+
+    sensors::IMU imu(sensors::IMUParams{0.0, 0.0, 0.0, 0.0}); // no noise
+    const auto sample = imu.sample(model.state(), model.lastAccelWorld());
+
+    // At hover the net world acceleration is ~0, so specific force = -g on body z
+    EXPECT_NEAR(sample.accel_body.z(), -9.80665, 0.05);
+}
+
 // ── GPS ──────────────────────────────────────────────────────────────────────
 
 TEST(GPS, FirstSampleAlwaysProduced) {
