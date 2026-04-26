@@ -14,8 +14,13 @@ Simulator::Simulator(SimConfig config)
     , gps_(config_.gps_params)
     , baro_(config_.baro_params)
     , mag_(config_.mag_params)
-    , mavlink_(comms::BridgeParams{config_.mavlink_host,
-                                    config_.mavlink_port})
+    , mavlink_([this] {
+        comms::BridgeParams bp;
+        bp.remote_host     = config_.mavlink_host;
+        bp.remote_port     = config_.mavlink_port;
+        bp.max_motor_speed = config_.quad_params.max_motor_speed;
+        return bp;
+    }())
     , json_log_(config_.json_log_path)
     , ulog_(config_.ulog_path)
 {}

@@ -95,7 +95,12 @@ inline SimConfig loadConfig(const std::string& path) {
 inline SimConfig tryLoadConfig(const std::string& path) {
     try {
         return loadConfig(path);
-    } catch (...) {
+    } catch (const std::runtime_error&) {
+        // file not found — silently use defaults
+        return SimConfig{};
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "Config parse error in '%s': %s — using defaults\n",
+                     path.c_str(), e.what());
         return SimConfig{};
     }
 }
