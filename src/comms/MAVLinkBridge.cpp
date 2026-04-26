@@ -92,7 +92,8 @@ void MAVLinkBridge::sendHilSensor(const sensors::IMUSample&  imu,
         0.0f,                        // diff_pressure (not modelled)
         baro.altitude_m,
         baro.temperature_c,
-        kAllSensors
+        kAllSensors,
+        0  // id: sensor instance 0
     );
     sendMessage(msg);
 }
@@ -122,7 +123,8 @@ void MAVLinkBridge::sendHilGps(const sensors::GPSSample& gps) {
         static_cast<int16_t>(gps.velocity_d * 100),
         UINT16_MAX,  // course over ground (unknown)
         gps.num_sats,
-        0  // id (single GPS)
+        0,          // id: single GPS instance
+        UINT16_MAX  // yaw: unknown
     );
     sendMessage(msg);
 }
