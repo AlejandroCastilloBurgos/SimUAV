@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "simuav/physics/QuadrotorModel.h"
+#include "simuav/physics/WindModel.h"
 #include <cmath>
 
 using namespace simuav::physics;

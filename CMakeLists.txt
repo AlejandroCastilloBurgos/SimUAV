@@ -11,6 +11,14 @@ add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+include(FetchContent)
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # MAVLink C headers (header-only, dialect: common).
 # Bootstrap: git clone https://github.com/mavlink/c_library_v2.git third_party/mavlink-c-library
 set(MAVLINK_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/third_party/mavlink-c-library)
@@ -38,10 +46,13 @@ add_library(simuav_lib STATIC
 
 target_include_directories(simuav_lib PUBLIC
     ${CMAKE_SOURCE_DIR}/include
+)
+# SYSTEM suppresses warnings from third-party MAVLink headers so -Werror stays clean.
+target_include_directories(simuav_lib SYSTEM PUBLIC
     ${MAVLINK_INCLUDE_DIR}
 )
 
-target_link_libraries(simuav_lib PUBLIC  Eigen3::Eigen)
+target_link_libraries(simuav_lib PUBLIC  Eigen3::Eigen nlohmann_json::nlohmann_json)
 target_link_libraries(simuav_lib PRIVATE pthread)
 
 # ------------- Executable ---------------------------------------------------

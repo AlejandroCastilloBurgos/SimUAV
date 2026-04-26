@@ -11,11 +11,16 @@ FetchContent_MakeAvailable(googletest)
 add_executable(simuav_tests
     test_physics.cpp
     test_sensors.cpp
+    test_config.cpp
 )
 
 target_link_libraries(simuav_tests PRIVATE
     simuav_lib
     GTest::gtest_main
+)
+
+target_compile_definitions(simuav_tests PRIVATE
+    SIMUAV_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 include(GoogleTest)
