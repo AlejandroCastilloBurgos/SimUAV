@@ -51,8 +51,9 @@ public:
                    double dt,
                    const Eigen::Vector3d& wind_ned = Eigen::Vector3d::Zero());
 
-    const State&           state()  const { return state_; }
-    const QuadrotorParams& params() const { return params_; }
+    const State&           state()          const { return state_; }
+    const QuadrotorParams& params()         const { return params_; }
+    const Eigen::Vector3d& lastAccelWorld() const { return last_accel_world_; }
     void setState(const State& s) { state_ = s; }
 
 private:
@@ -64,6 +65,7 @@ private:
 
     QuadrotorParams params_;
     State           state_;
+    Eigen::Vector3d last_accel_world_{Eigen::Vector3d::Zero()};
 };
 
 }  // namespace simuav::physics

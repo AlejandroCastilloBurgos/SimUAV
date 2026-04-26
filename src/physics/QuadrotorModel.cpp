@@ -76,6 +76,7 @@ void QuadrotorModel::integrate(const std::array<double, kNumMotors>& motor_speed
     }
 
     auto [lin_accel, ang_accel] = computeAccelerations(state_, w, wind_ned);
+    last_accel_world_ = lin_accel;
 
     // Semi-implicit Euler integration
     state_.velocity         += dt * lin_accel;

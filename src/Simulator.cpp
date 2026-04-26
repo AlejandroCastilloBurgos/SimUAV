@@ -65,10 +65,8 @@ void Simulator::step() {
     model_.integrate(motor_speeds_, config_.dt, wind_ned);
     const physics::State& s = model_.state();
 
-    // 4. Compute world-frame acceleration for IMU specific-force calculation.
-    //    We reuse the same formula the model uses so the IMU sees the same truth.
-    //    (Approximation: ignores drag acceleration for brevity; extend if needed.)
-    const Eigen::Vector3d accel_world(0.0, 0.0, 0.0); // placeholder — expand with model output
+    // 4. World-frame linear acceleration produced by the last physics step.
+    const Eigen::Vector3d accel_world = model_.lastAccelWorld();
 
     // 5. Sample sensors
     const sensors::IMUSample  imu_s  = imu_.sample(s, accel_world);
