@@ -37,29 +37,17 @@ WindModel::WindModel(WindParams params, double dt, uint64_t seed)
 }
 
 Eigen::Vector3d WindModel::drydenSample() {
-    // --- u/N: AR(1) ---
+    // u/N: exact AR(1) — x = a·x + b·ξ
     dry_xu_ = dry_au_ * dry_xu_ + dry_bu_ * normal_(rng_);
 
-    // --- v/E: 2-state Euler step ---
-    // x1_dot = x2,  x2_dot = -x1/τ² - 2x2/τ + w(t)
-    {
-        const double x1 = dry_xv_[0];
-        const double x2 = dry_xv_[1];
-        dry_xv_[0] = x1 + dt_ * x2;
-        dry_xv_[1] = x2 + dt_ * (-x1 / (dry_tau_v_ * dry_tau_v_)
-                                  - 2.0 * x2 / dry_tau_v_)
-                       + dry_noise_vw_ * normal_(rng_);
-    }
-
-    // --- w/D: 2-state Euler step ---
-    {
-        const double x1 = dry_xw_[0];
-        const double x2 = dry_xw_[1];
-        dry_xw_[0] = x1 + dt_ * x2;
-        dry_xw_[1] = x2 + dt_ * (-x1 / (dry_tau_w_ * dry_tau_w_)
-                                  - 2.0 * x2 / dry_tau_w_)
-                       + dry_noise_vw_ * normal_(rng_);
-    }
+    // v/E and w/D: 2-state Euler  (ẋ₁ = x₂,  ẋ₂ = −x₁/τ² − 2x₂/τ + w)
+    auto step2 = [&](Eigen::Vector2d& x, double tau) {
+        const double x2dot = -(x[0] / (tau * tau)) - (2.0 * x[1] / tau);
+        x[0] += dt_ * x[1];
+        x[1] += dt_ * x2dot + dry_noise_vw_ * normal_(rng_);
+    };
+    step2(dry_xv_, dry_tau_v_);
+    step2(dry_xw_, dry_tau_w_);
 
     return {
         dry_xu_,
