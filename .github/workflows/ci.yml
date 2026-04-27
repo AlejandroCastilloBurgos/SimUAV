@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libeigen3-dev build-essential gcc-12 g++-12
+
+      - name: Cache MAVLink headers
+        id: cache-mavlink
+        uses: actions/cache@v4
+        with:
+          path: third_party/mavlink-c-library
+          key: mavlink-c-library-v1
+
+      - name: Clone MAVLink headers
+        if: steps.cache-mavlink.outputs.cache-hit != 'true'
+        run: git clone --depth=1 https://github.com/mavlink/c_library_v2.git third_party/mavlink-c-library
+
+      - name: Cache CMake FetchContent downloads
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cmake-deps-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: cmake-deps-
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-12 \
+            -DCMAKE_CXX_COMPILER=g++-12
+
+      - name: Build
+        run: cmake --build build -j4
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
