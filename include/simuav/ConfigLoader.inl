@@ -40,9 +40,17 @@ inline SimConfig loadConfig(const std::string& path) {
     if (j.contains("wind_params")) {
         const auto& w  = j.at("wind_params");
         auto& p        = cfg.wind_params;
-        p.turbulence_std   = w.value("turbulence_std",   p.turbulence_std);
-        p.gust_probability = w.value("gust_probability", p.gust_probability);
-        p.gust_magnitude   = w.value("gust_magnitude",   p.gust_magnitude);
+        p.gust_probability  = w.value("gust_probability",  p.gust_probability);
+        p.gust_magnitude    = w.value("gust_magnitude",    p.gust_magnitude);
+        p.use_dryden        = w.value("use_dryden",        p.use_dryden);
+        p.turbulence_std    = w.value("turbulence_std",    p.turbulence_std);
+        p.dryden_airspeed   = w.value("dryden_airspeed",  p.dryden_airspeed);
+        p.dryden_length_u   = w.value("dryden_length_u",  p.dryden_length_u);
+        p.dryden_length_v   = w.value("dryden_length_v",  p.dryden_length_v);
+        p.dryden_length_w   = w.value("dryden_length_w",  p.dryden_length_w);
+        p.dryden_sigma_u    = w.value("dryden_sigma_u",   p.dryden_sigma_u);
+        p.dryden_sigma_v    = w.value("dryden_sigma_v",   p.dryden_sigma_v);
+        p.dryden_sigma_w    = w.value("dryden_sigma_w",   p.dryden_sigma_w);
         if (w.contains("mean_ned") && w.at("mean_ned").size() == 3) {
             auto& arr = w.at("mean_ned");
             p.mean_ned = {arr[0].get<double>(),

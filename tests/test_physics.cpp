@@ -102,3 +102,57 @@ TEST(WindModel, SampleReturnsFiniteVector) {
         EXPECT_TRUE(w.allFinite());
     }
 }
+
+TEST(WindModel, DrydenVarianceMatchesSigma) {
+    // Use high airspeed so τ = L/V is small (τ_u=τ_v=1s, τ_w=0.25s), giving
+    // ~200+ decorrelation times in the collection window for reliable variance estimation.
+    static constexpr double kDt       = 0.004;
+    static constexpr int    kWarmup   = static_cast<int>(10.0 / kDt);  // 10 s (10× τ_v)
+    static constexpr int    kCollect  = static_cast<int>(200.0 / kDt); // 200 s
+
+    WindParams p;
+    p.use_dryden       = true;
+    p.dryden_airspeed  = 200.0;   // m/s — high V → short τ → fast decorrelation
+    p.dryden_length_u  = 200.0;   // τ_u = 1.0 s
+    p.dryden_length_v  = 200.0;   // τ_v = 1.0 s
+    p.dryden_length_w  = 50.0;    // τ_w = 0.25 s
+    p.dryden_sigma_u   = 1.5;
+    p.dryden_sigma_v   = 1.5;
+    p.dryden_sigma_w   = 0.75;
+    p.gust_probability = 0.0;
+    WindModel wind(p, kDt, /*seed=*/42);
+
+    for (int i = 0; i < kWarmup; ++i) wind.sample();
+
+    Eigen::Vector3d sum  = Eigen::Vector3d::Zero();
+    Eigen::Vector3d sum2 = Eigen::Vector3d::Zero();
+    for (int i = 0; i < kCollect; ++i) {
+        const Eigen::Vector3d s = wind.sample();
+        sum  += s;
+        sum2 += s.cwiseProduct(s);
+    }
+    const Eigen::Vector3d mean = sum / kCollect;
+    const Eigen::Vector3d var  = sum2 / kCollect - mean.cwiseProduct(mean);
+
+    EXPECT_NEAR(var[0], p.dryden_sigma_u * p.dryden_sigma_u, 0.2 * p.dryden_sigma_u * p.dryden_sigma_u);
+    EXPECT_NEAR(var[1], p.dryden_sigma_v * p.dryden_sigma_v, 0.2 * p.dryden_sigma_v * p.dryden_sigma_v);
+    EXPECT_NEAR(var[2], p.dryden_sigma_w * p.dryden_sigma_w, 0.2 * p.dryden_sigma_w * p.dryden_sigma_w);
+}
+
+TEST(WindModel, WhiteNoiseFallbackWorks) {
+    WindParams p;
+    p.use_dryden    = false;
+    p.turbulence_std = 2.0;
+    p.gust_probability = 0.0;
+    WindModel wind(p, 0.004, /*seed=*/7);
+
+    static constexpr int kN = 50000;
+    double sum2 = 0.0;
+    for (int i = 0; i < kN; ++i) {
+        const double u = wind.sample()[0];
+        sum2 += u * u;
+    }
+    const double empirical_var = sum2 / kN;
+    EXPECT_NEAR(empirical_var, p.turbulence_std * p.turbulence_std,
+                0.1 * p.turbulence_std * p.turbulence_std);
+}

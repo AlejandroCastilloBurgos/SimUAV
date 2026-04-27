@@ -20,9 +20,17 @@
 
   "wind_params": {
     "mean_ned": [0.0, 0.0, 0.0],
-    "turbulence_std": 0.5,
     "gust_probability": 0.005,
-    "gust_magnitude": 3.0
+    "gust_magnitude": 3.0,
+    "use_dryden": true,
+    "turbulence_std": 0.5,
+    "dryden_airspeed": 15.0,
+    "dryden_length_u": 200.0,
+    "dryden_length_v": 200.0,
+    "dryden_length_w": 50.0,
+    "dryden_sigma_u": 1.5,
+    "dryden_sigma_v": 1.5,
+    "dryden_sigma_w": 0.75
   },
 
   "imu_params": {
