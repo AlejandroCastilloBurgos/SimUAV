@@ -9,7 +9,7 @@ namespace simuav {
 Simulator::Simulator(SimConfig config)
     : config_(std::move(config))
     , model_(config_.quad_params)
-    , wind_(config_.wind_params)
+    , wind_(config_.wind_params, config_.dt)
     , imu_(config_.imu_params)
     , gps_(config_.gps_params)
     , baro_(config_.baro_params)
