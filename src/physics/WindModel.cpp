@@ -41,13 +41,13 @@ Eigen::Vector3d WindModel::drydenSample() {
     dry_xu_ = dry_au_ * dry_xu_ + dry_bu_ * normal_(rng_);
 
     // v/E and w/D: 2-state Euler  (ẋ₁ = x₂,  ẋ₂ = −x₁/τ² − 2x₂/τ + w)
-    auto step2 = [&](Eigen::Vector2d& x, double tau) {
+    auto advanceFilter = [&](Eigen::Vector2d& x, double tau) {
         const double x2dot = -(x[0] / (tau * tau)) - (2.0 * x[1] / tau);
         x[0] += dt_ * x[1];
         x[1] += dt_ * x2dot + dry_noise_vw_ * normal_(rng_);
     };
-    step2(dry_xv_, dry_tau_v_);
-    step2(dry_xw_, dry_tau_w_);
+    advanceFilter(dry_xv_, dry_tau_v_);
+    advanceFilter(dry_xw_, dry_tau_w_);
 
     return {
         dry_xu_,
