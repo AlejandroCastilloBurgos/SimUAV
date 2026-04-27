@@ -31,6 +31,7 @@ struct QuadrotorParams {
     double max_motor_speed{838.0};  // rad/s (~8 000 RPM)
     double esc_exponent{0.5};       // throttle→speed power law: 0.5 = thrust-linear, 1.0 = speed-linear
     double motor_spin_min{0.0};     // rad/s — motor speed at zero throttle (idle)
+    bool   use_rk4{true};           // true = RK4 (default), false = semi-implicit Euler
 };
 
 // Full rigid-body state expressed in NED world frame.
