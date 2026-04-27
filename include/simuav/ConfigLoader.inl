@@ -28,6 +28,7 @@ inline SimConfig loadConfig(const std::string& path) {
         p.max_motor_speed  = q.value("max_motor_speed", p.max_motor_speed);
         p.esc_exponent     = q.value("esc_exponent",    p.esc_exponent);
         p.motor_spin_min   = q.value("motor_spin_min",  p.motor_spin_min);
+        p.use_rk4          = q.value("use_rk4",         p.use_rk4);
         if (q.contains("inertia_diag") && q.at("inertia_diag").size() == 3) {
             auto& arr = q.at("inertia_diag");
             p.inertia_diag = {arr[0].get<double>(),

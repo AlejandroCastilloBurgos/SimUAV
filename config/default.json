@@ -14,7 +14,8 @@
     "inertia_diag": [0.029, 0.029, 0.055],
     "max_motor_speed": 838.0,
     "esc_exponent": 0.5,
-    "motor_spin_min": 0.0
+    "motor_spin_min": 0.0,
+    "use_rk4": true
   },
 
   "wind_params": {

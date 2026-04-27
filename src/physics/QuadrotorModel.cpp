@@ -5,6 +5,14 @@ namespace simuav::physics {
 
 static constexpr double kGravity = 9.80665; // m/s²
 
+// State time-derivative used by the RK4 stepper (internal to this TU).
+struct Deriv {
+    Eigen::Vector3d vel;      // d(position)/dt
+    Eigen::Vector3d accel;    // d(velocity)/dt
+    Eigen::Vector4d dq;       // d(attitude.coeffs)/dt
+    Eigen::Vector3d domega;   // d(angular_velocity)/dt
+};
+
 QuadrotorModel::QuadrotorModel(QuadrotorParams params)
     : params_(std::move(params)) {}
 
@@ -75,24 +83,50 @@ void QuadrotorModel::integrate(const std::array<double, kNumMotors>& motor_speed
         w[i] = std::max(0.0, std::min(motor_speeds[i], params_.max_motor_speed));
     }
 
-    auto [lin_accel, ang_accel] = computeAccelerations(state_, w, wind_ned);
-    last_accel_world_ = lin_accel;
+    // Compute the full state derivative at state s.
+    auto deriv = [&](const State& s) -> Deriv {
+        auto [la, aa] = computeAccelerations(s, w, wind_ned);
+        const Eigen::Quaterniond oq(0.0, s.angular_velocity.x(),
+                                    s.angular_velocity.y(),
+                                    s.angular_velocity.z());
+        return {s.velocity, la, 0.5 * (s.attitude * oq).coeffs(), aa};
+    };
 
-    // Semi-implicit Euler integration
-    state_.velocity         += dt * lin_accel;
-    state_.position         += dt * state_.velocity;
-    state_.angular_velocity += dt * ang_accel;
+    // Advance a state by h * d without updating time.
+    auto advance = [](const State& s, const Deriv& d, double h) -> State {
+        State out = s;
+        out.position         += h * d.vel;
+        out.velocity         += h * d.accel;
+        out.attitude.coeffs() = (s.attitude.coeffs() + h * d.dq).normalized();
+        out.angular_velocity += h * d.domega;
+        return out;
+    };
 
-    // Quaternion kinematics: q_dot = 0.5 * q ⊗ [0, ω]
-    const Eigen::Quaterniond omega_quat(
-        0.0,
-        state_.angular_velocity.x(),
-        state_.angular_velocity.y(),
-        state_.angular_velocity.z()
-    );
-    const Eigen::Quaterniond dq = state_.attitude * omega_quat;
-    state_.attitude.coeffs() += 0.5 * dt * dq.coeffs();
-    state_.attitude.normalize();
+    if (params_.use_rk4) {
+        const Deriv k1 = deriv(state_);
+        const Deriv k2 = deriv(advance(state_, k1, 0.5 * dt));
+        const Deriv k3 = deriv(advance(state_, k2, 0.5 * dt));
+        const Deriv k4 = deriv(advance(state_, k3, dt));
+
+        last_accel_world_ = k1.accel;
+
+        const Deriv combined {
+            k1.vel    + 2.0*k2.vel    + 2.0*k3.vel    + k4.vel,
+            k1.accel  + 2.0*k2.accel  + 2.0*k3.accel  + k4.accel,
+            k1.dq     + 2.0*k2.dq     + 2.0*k3.dq     + k4.dq,
+            k1.domega + 2.0*k2.domega + 2.0*k3.domega + k4.domega,
+        };
+        state_ = advance(state_, combined, dt / 6.0);
+        state_.attitude.normalize();
+    } else {
+        // Semi-implicit Euler (legacy path — kept for benchmarking)
+        const Deriv d = deriv(state_);
+        last_accel_world_ = d.accel;
+        state_.velocity         += dt * d.accel;
+        state_.position         += dt * state_.velocity;  // semi-implicit: uses updated velocity
+        state_.angular_velocity += dt * d.domega;
+        state_.attitude.coeffs() = (state_.attitude.coeffs() + dt * d.dq).normalized();
+    }
 
     state_.time += dt;
 }

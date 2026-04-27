@@ -62,6 +62,39 @@ TEST(QuadrotorModel, AttitudeQuaternionRemainsNormalised) {
     EXPECT_NEAR(model.state().attitude.norm(), 1.0, 1e-9);
 }
 
+TEST(QuadrotorModel, RK4IsMoreAccurateThanEulerInFreeFall) {
+    // With aero_drag = 0, free fall is dv/dt = g (constant), z(t) = 0.5*g*t^2.
+    // RK4 integrates degree-2 polynomials exactly; semi-implicit Euler accumulates O(dt) error.
+    static constexpr double kG  = 9.80665;
+    static constexpr double kT  = 10.0;
+    static constexpr double kDt = 0.004;
+    static constexpr int    kN  = static_cast<int>(kT / kDt);
+
+    const std::array<double, kNumMotors> motors{};
+
+    QuadrotorParams p_rk4;
+    p_rk4.use_rk4   = true;
+    p_rk4.aero_drag = 0.0;
+    QuadrotorModel rk4_model(p_rk4);
+
+    QuadrotorParams p_euler;
+    p_euler.use_rk4   = false;
+    p_euler.aero_drag = 0.0;
+    QuadrotorModel euler_model(p_euler);
+
+    for (int i = 0; i < kN; ++i) {
+        rk4_model.integrate(motors, kDt);
+        euler_model.integrate(motors, kDt);
+    }
+
+    const double z_exact     = 0.5 * kG * kT * kT;
+    const double rk4_error   = std::abs(rk4_model.state().position.z()  - z_exact);
+    const double euler_error = std::abs(euler_model.state().position.z() - z_exact);
+
+    EXPECT_LT(rk4_error,   1e-6);        // RK4 is exact for constant-force ODEs
+    EXPECT_LT(rk4_error,   euler_error); // RK4 beats Euler
+}
+
 TEST(WindModel, SampleReturnsFiniteVector) {
     WindModel wind;
     for (int i = 0; i < 100; ++i) {
