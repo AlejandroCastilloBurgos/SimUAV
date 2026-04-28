@@ -13,14 +13,28 @@ static constexpr uint8_t kMsgFlagBits = 0x42; // 'B'
 static constexpr uint8_t kMsgFormat   = 0x46; // 'F'
 static constexpr uint8_t kMsgData     = 0x44; // 'D'
 
+static constexpr uint8_t  kMsgSubscription = 0x53;
+static constexpr uint16_t kMsgIdLocalPos   = 0;
+static constexpr uint16_t kMsgIdImu        = 1;
+static constexpr uint16_t kMsgIdGps        = 2;
+static constexpr uint16_t kMsgIdAirData    = 3;
+
 // vehicle_local_position fields logged (subset)
-static constexpr char kFormatStr[] =
+static constexpr char kFormatLocalPos[] =
     "vehicle_local_position:float x;float y;float z;"
     "float vx;float vy;float vz;"
     "float ax;float ay;float az;"
     "float baro_alt;";
 
-static constexpr uint16_t kMsgId = 0;
+static constexpr char kFormatImu[] =
+    "vehicle_imu:float ax;float ay;float az;float gx;float gy;float gz;";
+
+static constexpr char kFormatGps[] =
+    "vehicle_gps_position:double lat;double lon;float alt;"
+    "float vn;float ve;float vd;float eph;float epv;";
+
+static constexpr char kFormatAirData[] =
+    "vehicle_air_data:float pressure_pa;float altitude_m;float temperature_c;";
 
 ULogLogger::ULogLogger(const std::string& path)
     : file_(path, std::ios::out | std::ios::binary | std::ios::trunc) {}
@@ -67,12 +81,22 @@ void ULogLogger::writeFlagBits() {
     writeBytes(payload, sizeof(payload));
 }
 
-void ULogLogger::writeFormatMessage() {
-    const uint16_t fmt_len = static_cast<uint16_t>(std::strlen(kFormatStr));
+void ULogLogger::writeFormatMessage(const char* fmt_str) {
+    const uint16_t fmt_len = static_cast<uint16_t>(std::strlen(fmt_str));
     const uint16_t msg_size = fmt_len + 1; // +1 for msg_type byte
     writeU16(msg_size);
     writeByte(kMsgFormat);
-    writeBytes(kFormatStr, fmt_len);
+    writeBytes(fmt_str, fmt_len);
+}
+
+void ULogLogger::writeSubscriptionMessage(const char* topic_name, uint16_t msg_id) {
+    auto name_len = static_cast<uint16_t>(std::strlen(topic_name));
+    uint16_t msg_size = 1 + 1 + 2 + name_len;
+    writeU16(msg_size);
+    writeByte(kMsgSubscription);
+    writeByte(0);        // multi_id
+    writeU16(msg_id);
+    writeBytes(topic_name, name_len);
 }
 
 void ULogLogger::log(const physics::State&      state,
@@ -84,7 +108,14 @@ void ULogLogger::log(const physics::State&      state,
     if (!header_written_) {
         writeFileHeader();
         writeFlagBits();
-        writeFormatMessage();
+        writeFormatMessage(kFormatLocalPos);
+        writeFormatMessage(kFormatImu);
+        writeFormatMessage(kFormatGps);
+        writeFormatMessage(kFormatAirData);
+        writeSubscriptionMessage("vehicle_local_position", kMsgIdLocalPos);
+        writeSubscriptionMessage("vehicle_imu",            kMsgIdImu);
+        writeSubscriptionMessage("vehicle_gps_position",   kMsgIdGps);
+        writeSubscriptionMessage("vehicle_air_data",       kMsgIdAirData);
         header_written_ = true;
     }
 
@@ -98,7 +129,7 @@ void ULogLogger::log(const physics::State&      state,
     };
 
     Payload pl{};
-    pl.msg_id   = kMsgId;
+    pl.msg_id   = kMsgIdLocalPos;
     pl.x        = static_cast<float>(state.position.x());
     pl.y        = static_cast<float>(state.position.y());
     pl.z        = static_cast<float>(state.position.z());
