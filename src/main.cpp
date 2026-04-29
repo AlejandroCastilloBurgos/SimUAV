@@ -1,12 +1,15 @@
 // simuav
 #include "simuav/Simulator.h"
 #include "simuav/ConfigLoader.h"
+#include "simuav/LogReplayer.h"
 
 // std
 #include <csignal>
 #include <cstdlib>
 #include <cstdio>
+#include <chrono>
 #include <string>
+#include <thread>
 
 namespace {
 simuav::Simulator* g_sim = nullptr;
@@ -17,16 +20,23 @@ void onSignal(int) {
 } // namespace
 
 int main(int argc, char* argv[]) {
-    // Resolve config path: --config <path> > config/default.json > hardcoded defaults
     std::string config_path;
+    std::string replay_path;
+
     for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--config") {
+        const std::string arg(argv[i]);
+        if (arg == "--config") {
             if (i + 1 >= argc) {
                 std::fprintf(stderr, "--config requires a path argument\n");
                 return EXIT_FAILURE;
             }
-            config_path = argv[i + 1];
-            break;
+            config_path = argv[++i];
+        } else if (arg == "--replay") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "--replay requires a path argument\n");
+                return EXIT_FAILURE;
+            }
+            replay_path = argv[++i];
         }
     }
 
@@ -42,6 +52,40 @@ int main(int argc, char* argv[]) {
         }
     } else {
         cfg = simuav::tryLoadConfig("config/default.json");
+    }
+
+    if (!replay_path.empty()) {
+        std::vector<simuav::ReplayEntry> entries;
+        try {
+            entries = simuav::loadLog(replay_path);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "Error loading log '%s': %s\n",
+                         replay_path.c_str(), e.what());
+            return EXIT_FAILURE;
+        }
+
+        std::printf("Replay mode: %zu entries from %s\n",
+                    entries.size(), replay_path.c_str());
+
+        simuav::sensors::IMU          imu(cfg.imu_params);
+        simuav::sensors::GPS          gps(cfg.gps_params);
+        simuav::sensors::Barometer    baro(cfg.baro_params);
+        simuav::sensors::Magnetometer mag(cfg.mag_params);
+
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            simuav::replayStep(entries[i], imu, gps, baro, mag);
+
+            if (i + 1 < entries.size()) {
+                const double delta_s = entries[i + 1].state.time - entries[i].state.time;
+                if (delta_s > 0.0) {
+                    std::this_thread::sleep_for(
+                        std::chrono::duration<double>(delta_s));
+                }
+            }
+        }
+
+        std::printf("Replay complete.\n");
+        return EXIT_SUCCESS;
     }
 
     simuav::Simulator sim(cfg);
