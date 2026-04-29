@@ -43,6 +43,15 @@ ctest --test-dir build --output-on-failure
 
 GoogleTest is fetched automatically by CMake via `FetchContent` the first time — requires internet.
 
+**End-to-end test (PX4 SITL):**
+```bash
+# Requires PX4-Autopilot source and pymavlink
+pip install pymavlink
+export PX4_SRC=/path/to/PX4-Autopilot
+python3 scripts/e2e_px4_sitl.py
+```
+Starts PX4 SITL + SimUAV, asserts GPS lock within 30 s and successful arm. Runs nightly on CI (`.github/workflows/e2e.yml`).
+
 ## Architecture
 
 ```

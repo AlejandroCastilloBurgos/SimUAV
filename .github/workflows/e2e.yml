@@ -1,0 +1,90 @@
+name: E2E (PX4 SITL)
+
+on:
+  schedule:
+    # Nightly at 02:00 UTC — not on every PR due to PX4 build time
+    - cron: "0 2 * * *"
+  workflow_dispatch:   # allow manual runs
+
+jobs:
+  e2e-px4-sitl:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── SimUAV build ──────────────────────────────────────────────────────
+
+      - name: Install SimUAV dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libeigen3-dev build-essential gcc-12 g++-12
+
+      - name: Cache MAVLink headers
+        id: cache-mavlink
+        uses: actions/cache@v4
+        with:
+          path: third_party/mavlink-c-library
+          key: mavlink-c-library-v1
+
+      - name: Clone MAVLink headers
+        if: steps.cache-mavlink.outputs.cache-hit != 'true'
+        run: git clone --depth=1 https://github.com/mavlink/c_library_v2.git third_party/mavlink-c-library
+
+      - name: Cache CMake FetchContent downloads
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cmake-deps-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: cmake-deps-
+
+      - name: Build SimUAV
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-12 \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DBUILD_TESTS=OFF
+          cmake --build build -j4
+
+      # ── PX4 SITL ──────────────────────────────────────────────────────────
+
+      - name: Install PX4 system dependencies
+        run: |
+          sudo apt-get install -y \
+            python3-pip git wget ninja-build \
+            libxml2-utils xmlstarlet \
+            x11-utils libopencv-dev \
+            ant openjdk-11-jdk
+
+      - name: Cache PX4 source
+        id: cache-px4
+        uses: actions/cache@v4
+        with:
+          path: px4-autopilot
+          key: px4-v1.14-${{ runner.os }}
+
+      - name: Clone PX4 v1.14
+        if: steps.cache-px4.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --branch v1.14.0 \
+            https://github.com/PX4/PX4-Autopilot.git px4-autopilot
+          cd px4-autopilot
+          git submodule update --init --recursive --depth=1
+
+      - name: Install PX4 Python requirements
+        run: pip3 install -r px4-autopilot/requirements.txt
+
+      - name: Install pymavlink
+        run: pip3 install pymavlink
+
+      # ── Run end-to-end test ───────────────────────────────────────────────
+
+      - name: Run E2E test
+        run: |
+          python3 scripts/e2e_px4_sitl.py \
+            --px4-src px4-autopilot \
+            --simuav ./build/simuav \
+            --gps-timeout 30 \
+            --arm-timeout 15
