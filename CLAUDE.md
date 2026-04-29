@@ -93,9 +93,10 @@ Thrust in body: `[0, 0, −F_total]` (upward = negative body-Z).
 ### MAVLink bridge
 
 - **Outbound**: `HIL_SENSOR` every physics step (250 Hz); `HIL_GPS` at `gps_params.update_rate_hz` (default 5 Hz).
-- **Inbound**: `HIL_ACTUATOR_CONTROLS` — normalized `[0, 1]` per motor, linearly mapped to `[0, max_motor_speed]` rad/s.
+- **Inbound**: `HIL_ACTUATOR_CONTROLS` (normalized [0,1], PX4 and ArduPilot) or `RC_CHANNELS_OVERRIDE` (PWM [1000–2000 µs], ArduPilot SITL only). Motor channels 1–4 map to motor indices 0–3.
 - Socket is **non-blocking** (`O_NONBLOCK`). If no packet arrives in a step, the previous motor command is reused.
 - Default ports: simulator binds `14561`, sends to firmware at `14560` (PX4 SITL default).
+- Firmware target is selected via `"firmware_target": "px4"` or `"firmware_target": "ardupilot"` in the config file (default: `"px4"`). The `ardupilotmega` MAVLink dialect header (a strict superset of `common`) is always included.
 
 ### Sensor noise model
 
@@ -114,7 +115,7 @@ Each sensor class inherits `SensorBase` (a seeded `std::mt19937_64`). Sensors us
 - C++17 strict: no C++20 features. Nested namespaces (`namespace a::b`) and structured bindings (`auto [x, y]`) are fine.
 - `-Wall -Wextra -Wpedantic -Werror` are enforced by CMake — zero warnings allowed.
 - All public headers live under `include/simuav/` and are included as `#include "simuav/..."`
-- MAVLink headers are included as `#include "common/mavlink.h"` (the dialect subdirectory is on the include path).
+- MAVLink headers are included as `#include "ardupilotmega/mavlink.h"` (the dialect subdirectory is on the include path). This is a strict superset of `common`; all common message IDs remain unchanged.
 
 ## Key files for new contributors
 

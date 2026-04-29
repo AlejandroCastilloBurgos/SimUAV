@@ -36,3 +36,38 @@ TEST(ESCCurve, SpinMinOffsetScalesCorrectly) {
     // ω = 100 + (838-100)*0.5 = 100 + 369 = 469
     EXPECT_DOUBLE_EQ(MAVLinkBridge::escToSpeed(0.5, 838.0, 100.0, 1.0), 469.0);
 }
+
+// ── Dialect: message ID regressions ──────────────────────────────────────────
+//
+// These tests pin the compile-time MAVLink constants that both firmware targets
+// depend on. Switching the dialect header (ardupilotmega vs common) must not
+// change any of these IDs.
+
+TEST(MavLinkDialect, Px4HilMessageIds) {
+    // Pack a HIL_SENSOR and confirm the resulting msgid matches the constant.
+    mavlink_message_t msg{};
+    mavlink_msg_hil_sensor_pack(1, 1, &msg,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    EXPECT_EQ(msg.msgid, static_cast<uint32_t>(MAVLINK_MSG_ID_HIL_SENSOR));
+    EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_HIL_SENSOR),           107u);
+    EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_HIL_GPS),              113u);
+    EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS), 93u);
+}
+
+TEST(MavLinkDialect, ArduPilotRcChannelsOverrideId) {
+    EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE), 70u);
+}
+
+TEST(MavLinkDialect, ArduPilotPwmNormalisation) {
+    // 1000 µs → throttle 0.0, 1500 µs → 0.5, 2000 µs → 1.0
+    auto pwmToSpeed = [](uint16_t pwm) {
+        const double t = (static_cast<double>(pwm) - 1000.0) / 1000.0;
+        return MAVLinkBridge::escToSpeed(t, 838.0, 0.0, 1.0);
+    };
+    EXPECT_DOUBLE_EQ(pwmToSpeed(1000),   0.0);
+    EXPECT_DOUBLE_EQ(pwmToSpeed(1500), 419.0);
+    EXPECT_DOUBLE_EQ(pwmToSpeed(2000), 838.0);
+    // Values outside [1000,2000] clamp to [0,1] throttle range
+    EXPECT_DOUBLE_EQ(pwmToSpeed(500),    0.0);
+    EXPECT_DOUBLE_EQ(pwmToSpeed(3000), 838.0);
+}

@@ -17,6 +17,12 @@ inline SimConfig loadConfig(const std::string& path) {
     cfg.json_log_path  = j.value("json_log_path",  cfg.json_log_path);
     cfg.ulog_path      = j.value("ulog_path",      cfg.ulog_path);
 
+    {
+        const std::string ft = j.value("firmware_target", std::string("px4"));
+        cfg.firmware_target = (ft == "ardupilot") ? FirmwareTarget::ArduPilot
+                                                   : FirmwareTarget::PX4;
+    }
+
     if (j.contains("quad_params")) {
         const auto& q      = j.at("quad_params");
         auto& p            = cfg.quad_params;

@@ -1,4 +1,5 @@
 #pragma once
+#include "simuav/FirmwareTarget.h"
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/physics/WindModel.h"
 #include "simuav/sensors/IMU.h"
@@ -15,9 +16,10 @@
 namespace simuav {
 
 struct SimConfig {
-    double      dt{0.004};                  // s, physics timestep (250 Hz)
-    std::string mavlink_host{"127.0.0.1"};
-    uint16_t    mavlink_port{14560};
+    double         dt{0.004};                  // s, physics timestep (250 Hz)
+    std::string    mavlink_host{"127.0.0.1"};
+    uint16_t       mavlink_port{14560};
+    FirmwareTarget firmware_target{FirmwareTarget::PX4};
     std::string json_log_path{"telemetry.json"};
     std::string ulog_path{"telemetry.ulg"};
 

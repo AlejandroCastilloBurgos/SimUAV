@@ -2,6 +2,7 @@
   "dt": 0.004,
   "mavlink_host": "127.0.0.1",
   "mavlink_port": 14560,
+  "firmware_target": "px4",
   "json_log_path": "telemetry.json",
   "ulog_path": "telemetry.ulg",
 

@@ -21,6 +21,7 @@ Simulator::Simulator(SimConfig config)
         bp.max_motor_speed = config_.quad_params.max_motor_speed;
         bp.esc_exponent    = config_.quad_params.esc_exponent;
         bp.motor_spin_min  = config_.quad_params.motor_spin_min;
+        bp.firmware_target = config_.firmware_target;
         return bp;
     }())
     , json_log_(config_.json_log_path)
