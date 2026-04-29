@@ -147,9 +147,31 @@ bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
                 mavlink_hil_actuator_controls_t act{};
                 mavlink_msg_hil_actuator_controls_decode(&msg, &act);
 
-                for (int i = 0; i < 4; ++i) {
-                    out_speeds[i] = escToSpeed(
-                        static_cast<double>(act.controls[i]),
+                for (int k = 0; k < 4; ++k) {
+                    out_speeds[k] = escToSpeed(
+                        static_cast<double>(act.controls[k]),
+                        params_.max_motor_speed,
+                        params_.motor_spin_min,
+                        params_.esc_exponent);
+                }
+                got_actuators = true;
+            }
+
+            // ArduPilot SITL sends RC_CHANNELS_OVERRIDE with PWM values
+            // [1000–2000 µs] on channels 1–4 for the four motors.
+            if (params_.firmware_target == FirmwareTarget::ArduPilot &&
+                msg.msgid == MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE) {
+                mavlink_rc_channels_override_t rc{};
+                mavlink_msg_rc_channels_override_decode(&msg, &rc);
+
+                const uint16_t chans[4] = {
+                    rc.chan1_raw, rc.chan2_raw, rc.chan3_raw, rc.chan4_raw
+                };
+                for (int k = 0; k < 4; ++k) {
+                    const double throttle =
+                        (static_cast<double>(chans[k]) - 1000.0) / 1000.0;
+                    out_speeds[k] = escToSpeed(
+                        throttle,
                         params_.max_motor_speed,
                         params_.motor_spin_min,
                         params_.esc_exponent);
