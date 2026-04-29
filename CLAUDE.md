@@ -43,6 +43,15 @@ ctest --test-dir build --output-on-failure
 
 GoogleTest is fetched automatically by CMake via `FetchContent` the first time — requires internet.
 
+**End-to-end test (PX4 SITL):**
+```bash
+# Requires PX4-Autopilot source and pymavlink
+pip install pymavlink
+export PX4_SRC=/path/to/PX4-Autopilot
+python3 scripts/e2e_px4_sitl.py
+```
+Starts PX4 SITL + SimUAV, asserts GPS lock within 30 s and successful arm. Runs nightly on CI (`.github/workflows/e2e.yml`).
+
 ## Architecture
 
 ```
@@ -108,7 +117,8 @@ Each sensor class inherits `SensorBase` (a seeded `std::mt19937_64`). Sensors us
 ### Logging
 
 - **JSON** (`telemetry.json`): NDJSON, one JSON object per physics step. Fields: `t`, `pos[3]`, `vel[3]`, `att[4]` (w,x,y,z), `omega[3]`, `accel[3]`, `gyro[3]`, `baro_alt`, `gps_lat`, `gps_lon`.
-- **uLog** (`telemetry.ulg`): PX4 binary format. Currently writes file header + `FLAG_BITS` + one `FORMAT` message (`vehicle_local_position`) + one `DATA` message per step. Open with `pyulog` or Flight Review.
+- **uLog** (`telemetry.ulg`): PX4 binary format. Writes file header + `FLAG_BITS` + four `FORMAT` messages (`vehicle_local_position`, `vehicle_imu`, `vehicle_gps_position`, `vehicle_air_data`) + four `SUBSCRIPTION` messages (msg_id 0–3) + one `DATA` message per step (msg_id 0 = `vehicle_local_position`). Open with `pyulog` or Flight Review.
+- **Replay** (`--replay <path>`): reads an NDJSON log, reconstructs `physics::State` from each entry, derives `accel_world` by finite-differencing consecutive velocity entries, and feeds the states through the sensor pipeline without connecting to firmware. See `include/simuav/LogReplayer.h`.
 
 ## Language rules
 
