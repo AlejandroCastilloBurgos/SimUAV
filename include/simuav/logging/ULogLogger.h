@@ -15,8 +15,9 @@ namespace simuav::logging {
 // Layout written:
 //   File header (16 bytes magic + timestamp)
 //   FLAG_BITS message
-//   FORMAT message  (defines "vehicle_local_position" struct)
-//   DATA messages   (one per log() call, msg_id 0)
+//   FORMAT messages  (vehicle_local_position, vehicle_imu, vehicle_gps_position, vehicle_air_data)
+//   SUBSCRIPTION messages (one per FORMAT, msg_id 0-3)
+//   DATA messages   (one per log() call, msg_id 0 = vehicle_local_position)
 class ULogLogger {
 public:
     explicit ULogLogger(const std::string& path);
@@ -31,7 +32,8 @@ public:
 private:
     void writeFileHeader();
     void writeFlagBits();
-    void writeFormatMessage();
+    void writeFormatMessage(const char* fmt_str);
+    void writeSubscriptionMessage(const char* topic_name, uint16_t msg_id);
     void writeU16(uint16_t v);
     void writeU64(uint64_t v);
     void writeFloat(float v);
