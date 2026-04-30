@@ -51,12 +51,12 @@ jobs:
       # ── PX4 SITL ──────────────────────────────────────────────────────────
 
       - name: Install PX4 system dependencies
+        # Only packages needed for headless SITL — excludes GUI tools (ant,
+        # openjdk, x11-utils) that are not required for none_iris target.
         run: |
           sudo apt-get install -y \
-            python3-pip git wget ninja-build \
-            libxml2-utils xmlstarlet \
-            x11-utils libopencv-dev \
-            ant openjdk-11-jdk
+            python3-venv python3-dev git wget ninja-build \
+            libxml2-utils xmlstarlet libopencv-dev
 
       - name: Cache PX4 source
         id: cache-px4
@@ -73,17 +73,29 @@ jobs:
           cd px4-autopilot
           git submodule update --init --recursive --depth=1
 
+      # Use a venv to avoid PEP 668 "externally-managed-environment" errors
+      # that occur with Python 3.12+ system pip.
+      - name: Set up Python venv
+        run: python3 -m venv .venv
+
+      - name: Cache pip venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: pip-venv-${{ hashFiles('px4-autopilot/requirements.txt') }}
+          restore-keys: pip-venv-
+
       - name: Install PX4 Python requirements
-        run: pip3 install -r px4-autopilot/requirements.txt
+        run: .venv/bin/pip install --upgrade pip -r px4-autopilot/requirements.txt
 
       - name: Install pymavlink
-        run: pip3 install pymavlink
+        run: .venv/bin/pip install pymavlink
 
       # ── Run end-to-end test ───────────────────────────────────────────────
 
       - name: Run E2E test
         run: |
-          python3 scripts/e2e_px4_sitl.py \
+          .venv/bin/python3 scripts/e2e_px4_sitl.py \
             --px4-src px4-autopilot \
             --simuav ./build/simuav \
             --gps-timeout 30 \
