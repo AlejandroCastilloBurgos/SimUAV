@@ -100,6 +100,15 @@ int main(int argc, char* argv[]) {
 
     sim.run();
 
+    const simuav::LoopStats& st = sim.stats();
     std::printf("Simulation ended. Logs written.\n");
+    std::printf("Loop summary: %llu steps, %llu overruns (%.2f%%), max step %.0f µs\n",
+                static_cast<unsigned long long>(st.step_count),
+                static_cast<unsigned long long>(st.overrun_count),
+                st.step_count > 0
+                    ? 100.0 * static_cast<double>(st.overrun_count) /
+                          static_cast<double>(st.step_count)
+                    : 0.0,
+                st.max_step_us);
     return EXIT_SUCCESS;
 }

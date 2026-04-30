@@ -11,9 +11,16 @@
 #include "simuav/logging/ULogLogger.h"
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 
 namespace simuav {
+
+struct LoopStats {
+    uint64_t step_count{0};
+    uint64_t overrun_count{0};
+    double   max_step_us{0.0};
+};
 
 struct SimConfig {
     double         dt{0.004};                  // s, physics timestep (250 Hz)
@@ -48,6 +55,7 @@ public:
     void stop();
 
     const physics::State& state() const { return model_.state(); }
+    const LoopStats&      stats() const { return stats_; }
 
 private:
     void step();
@@ -66,6 +74,7 @@ private:
 
     std::array<double, physics::kNumMotors> motor_speeds_{};
     std::atomic<bool> running_{false};
+    LoopStats         stats_{};
 };
 
 }  // namespace simuav

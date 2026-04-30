@@ -1,5 +1,6 @@
 #include "simuav/Simulator.h"
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <cstdio>
@@ -45,12 +46,42 @@ void Simulator::run() {
                 1.0 / config_.dt);
 
     using Clock     = std::chrono::steady_clock;
-    using Duration  = std::chrono::duration<double>;
-    const Duration step_dur{config_.dt};
+    using FpSeconds = std::chrono::duration<double>;
+    using FpMicros  = std::chrono::duration<double, std::micro>;
+    const FpSeconds step_dur{config_.dt};
     auto next_wake  = Clock::now() + step_dur;
 
+    // Overrun warning throttle: emit at most once per second.
+    auto last_warn = Clock::now();
+
     while (running_) {
+        const auto t0 = Clock::now();
         step();
+        const auto t1 = Clock::now();
+
+        const double elapsed_us = FpMicros(t1 - t0).count();
+        ++stats_.step_count;
+        stats_.max_step_us = std::max(stats_.max_step_us, elapsed_us);
+
+        if (elapsed_us > config_.dt * 1e6) {
+            ++stats_.overrun_count;
+            // Warn at most once per second when overrun ratio exceeds 1%.
+            if (stats_.step_count >= 100 &&
+                static_cast<double>(stats_.overrun_count) /
+                    static_cast<double>(stats_.step_count) > 0.01 &&
+                FpSeconds(t1 - last_warn).count() >= 1.0) {
+                std::fprintf(stderr,
+                    "SimUAV: loop overruns %.1f%% (%llu / %llu steps), "
+                    "max step %.0f µs\n",
+                    100.0 * static_cast<double>(stats_.overrun_count) /
+                        static_cast<double>(stats_.step_count),
+                    static_cast<unsigned long long>(stats_.overrun_count),
+                    static_cast<unsigned long long>(stats_.step_count),
+                    stats_.max_step_us);
+                last_warn = t1;
+            }
+        }
+
         std::this_thread::sleep_until(next_wake);
         next_wake += step_dur;
     }
