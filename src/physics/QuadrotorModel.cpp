@@ -77,10 +77,26 @@ void QuadrotorModel::integrate(const std::array<double, kNumMotors>& motor_speed
                                 double dt,
                                 const Eigen::Vector3d& wind_ned)
 {
-    // Clamp motor speeds to physical limits
-    std::array<double, kNumMotors> w{};
+    // Clamp commanded speeds to physical limits.
+    std::array<double, kNumMotors> w_cmd{};
     for (int i = 0; i < kNumMotors; ++i) {
-        w[i] = std::max(0.0, std::min(motor_speeds[i], params_.max_motor_speed));
+        w_cmd[i] = std::max(0.0, std::min(motor_speeds[i], params_.max_motor_speed));
+    }
+
+    // First-order motor lag: ω_actual += (dt/τ) * (ω_cmd − ω_actual).
+    // When τ ≤ 0 skip the filter so the model stays instantaneous.
+    std::array<double, kNumMotors> w{};
+    if (params_.motor_time_constant_s > 0.0) {
+        const double alpha = dt / params_.motor_time_constant_s;
+        for (int i = 0; i < kNumMotors; ++i) {
+            motor_speeds_actual_[i] += alpha * (w_cmd[i] - motor_speeds_actual_[i]);
+            w[i] = motor_speeds_actual_[i];
+        }
+    } else {
+        for (int i = 0; i < kNumMotors; ++i) {
+            motor_speeds_actual_[i] = w_cmd[i];
+            w[i] = w_cmd[i];
+        }
     }
 
     // Compute the full state derivative at state s.

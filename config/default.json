@@ -16,7 +16,8 @@
     "max_motor_speed": 838.0,
     "esc_exponent": 0.5,
     "motor_spin_min": 0.0,
-    "use_rk4": true
+    "use_rk4": true,
+    "motor_time_constant_s": 0.04
   },
 
   "wind_params": {
