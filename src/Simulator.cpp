@@ -90,7 +90,7 @@ void Simulator::step() {
 
     // 7. Log
     json_log_.log(s, imu_s, baro_s, gps_s);
-    ulog_.log(s, imu_s, baro_s);
+    ulog_.log(s, imu_s, baro_s, gps_s);
 }
 
 }  // namespace simuav

@@ -136,3 +136,55 @@ Each sensor class inherits `SensorBase` (a seeded `std::mt19937_64`). Sensors us
 | `src/physics/QuadrotorModel.cpp` | Full force/torque derivation |
 | `src/comms/MAVLinkBridge.cpp` | PWM→rad/s mapping; HIL message packing |
 | `config/default.json` | All tuneable parameters with their default values |
+
+++
+++## Core Engineering Principles
+++
+++We build production-grade software.
+++
+++Priority order:
+++
+++1. Correctness
+++2. Maintainability
+++3. Simplicity
+++4. Security
+++5. Performance
+++6. Scalability
+++
+++Always avoid:
+++
+++- spaghetti code
+++- overengineering
+++- premature optimization
+++- hidden complexity
+++- fragile systems
+++- unclear ownership
+++
+++Prefer:
+++
+++- readable code
+++- modular design
+++- predictable behavior
+++- strong naming
+++- clean architecture
+++- testability
+++- small safe iterations
+++
+++Use principles pragmatically:
+++
+++- KISS
+++- SOLID
+++- DRY
+++- YAGNI
+++-
+++# Recommended Workflow
+++
+++Feature Work:
+++tech-lead → senior-dev → security-reviewer → qa-tester → documenter → devops-engineer
+++
+++Bug Fix:
+++debugger → tech-lead → senior-dev → qa-tester → documenter
+++
+++Technical Debt:
+++refactorer → qa-tester → documenter
+++

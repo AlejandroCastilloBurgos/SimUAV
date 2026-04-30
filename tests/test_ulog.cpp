@@ -9,6 +9,7 @@
 #include "simuav/logging/ULogLogger.h"
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/sensors/Barometer.h"
+#include "simuav/sensors/GPS.h"
 #include "simuav/sensors/IMU.h"
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -47,8 +48,9 @@ TEST(ULogLogger, SubscriptionMessagesPresent) {
         simuav::physics::State state;          // Eigen members initialise to zero/identity
         simuav::sensors::IMUSample imu;        // Eigen members initialise to zero
         simuav::sensors::BaroSample baro{};    // POD aggregate — zero by value-init
+        simuav::sensors::GPSSample  gps{};     // POD aggregate — zero by value-init
 
-        logger.log(state, imu, baro);
+        logger.log(state, imu, baro, gps);
     }  // destructor flushes and closes
 
     // 2. Open for binary reading.
@@ -114,4 +116,67 @@ TEST(ULogLogger, SubscriptionMessagesPresent) {
         EXPECT_EQ(std::string(expected[i].name), topic_name)
             << "SUBSCRIPTION " << i << ": topic name mismatch";
     }
+}
+
+TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
+    const std::string path = "/tmp/simuav_test_data.ulg";
+
+    {
+        simuav::logging::ULogLogger logger(path);
+        ASSERT_TRUE(logger.isOpen());
+
+        simuav::physics::State      state;
+        simuav::sensors::IMUSample  imu;
+        simuav::sensors::BaroSample baro{};
+        simuav::sensors::GPSSample  gps{};
+
+        logger.log(state, imu, baro, gps);
+    }
+
+    std::ifstream f(path, std::ios::binary);
+    ASSERT_TRUE(f.is_open());
+
+    // Skip file header (16 bytes).
+    skipBytes(f, 16);
+
+    // Skip FLAG_BITS message.
+    {
+        uint16_t sz = readU16(f);
+        skipBytes(f, sz);
+    }
+
+    // Skip 4 FORMAT messages.
+    for (int i = 0; i < 4; ++i) {
+        uint16_t sz = readU16(f);
+        skipBytes(f, sz);
+    }
+
+    // Skip 4 SUBSCRIPTION messages.
+    for (int i = 0; i < 4; ++i) {
+        uint16_t sz = readU16(f);
+        skipBytes(f, sz);
+    }
+
+    // Collect msg_ids from all DATA messages (msg_type == 0x44 'D').
+    std::array<bool, 4> seen{};
+    while (f) {
+        uint16_t msg_size = readU16(f);
+        if (!f) break;
+        uint8_t msg_type = readU8(f);
+        if (!f) break;
+
+        if (msg_type == 0x44) {
+            uint16_t msg_id = readU16(f);
+            if (msg_id < 4) seen[msg_id] = true;
+            // Skip remaining payload bytes (msg_size - 1 type - 2 msg_id).
+            skipBytes(f, static_cast<std::size_t>(msg_size) - 1 - 2);
+        } else {
+            skipBytes(f, static_cast<std::size_t>(msg_size) - 1);
+        }
+    }
+
+    EXPECT_TRUE(seen[0]) << "DATA msg_id 0 (vehicle_local_position) missing";
+    EXPECT_TRUE(seen[1]) << "DATA msg_id 1 (vehicle_imu) missing";
+    EXPECT_TRUE(seen[2]) << "DATA msg_id 2 (vehicle_gps_position) missing";
+    EXPECT_TRUE(seen[3]) << "DATA msg_id 3 (vehicle_air_data) missing";
 }
