@@ -95,3 +95,13 @@ TEST(ConfigLoader, LoadsDefaultJsonFile) {
     EXPECT_GT(cfg.baro_params.noise_std_m, 0.0);
     EXPECT_GT(cfg.mag_params.noise_std, 0.0);
 }
+
+TEST(ConfigLoader, LoadsArduPilotSitlJsonFile) {
+    const SimConfig cfg = loadConfig(
+        std::string(SIMUAV_SOURCE_DIR) + "/config/ardupilot_sitl.json");
+
+    EXPECT_EQ(FirmwareTarget::ArduPilot, cfg.firmware_target);
+    EXPECT_EQ(9002u, cfg.mavlink_port);
+    EXPECT_GT(cfg.dt, 0.0);
+    EXPECT_GT(cfg.quad_params.mass, 0.0);
+}
