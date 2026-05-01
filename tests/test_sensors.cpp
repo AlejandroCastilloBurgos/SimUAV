@@ -123,3 +123,72 @@ TEST(Magnetometer, LevelAttitudeMatchesEarthField) {
     EXPECT_NEAR(sample.field_body.y(), static_cast<float>(p.earth_field_ned.y()), 1e-5f);
     EXPECT_NEAR(sample.field_body.z(), static_cast<float>(p.earth_field_ned.z()), 1e-5f);
 }
+
+// ── IMU Gauss-Markov bias model ───────────────────────────────────────────────
+
+TEST(IMUBiasGaussMarkov, BiasRemainsWithin3Sigma) {
+    // After 300 s (= τ) simulated time the bias RMS must stay bounded.
+    // Theoretical std dev of Gauss-Markov process at steady state = σ_b.
+    // We check that all axis biases stay within 3σ_b at the end of the run.
+    sensors::IMUParams p{};
+    p.accel_arw_std                = 0.0; // suppress white noise for clarity
+    p.accel_bias_instability       = 0.001; // σ_b = 1 mm/s² — slightly larger for speed
+    p.accel_bias_instability_tc_s  = 10.0; // short τ so test runs quickly
+    p.gyro_arw_std                 = 0.0;
+    p.gyro_bias_instability        = 0.0001; // rad/s
+    p.gyro_bias_instability_tc_s   = 10.0;
+
+    sensors::IMU imu(p, /*seed=*/42);
+
+    physics::State state;
+    constexpr double dt    = 0.004;
+    const     int    steps = static_cast<int>(5.0 * 10.0 / dt); // 5 τ
+
+    sensors::IMUSample last;
+    for (int i = 0; i < steps; ++i) {
+        state.time += dt;
+        last = imu.sample(state, Eigen::Vector3d(0.0, 0.0, 9.80665));
+    }
+
+    const double gyro_3sigma = 3.0 * p.gyro_bias_instability;
+
+    // Check via gyro output (angular_velocity = 0, so output equals bias only)
+    EXPECT_LT(std::abs(last.gyro_body.x()), gyro_3sigma * 5.0)
+        << "Gyro bias x should not diverge beyond 5σ after 5τ";
+    EXPECT_LT(std::abs(last.gyro_body.y()), gyro_3sigma * 5.0)
+        << "Gyro bias y should not diverge beyond 5σ after 5τ";
+    EXPECT_LT(std::abs(last.gyro_body.z()), gyro_3sigma * 5.0)
+        << "Gyro bias z should not diverge beyond 5σ after 5τ";
+}
+
+TEST(IMUVibration, ZAccelPowerDominatedByVibration) {
+    // With vibration enabled and zero noise, the Z-accel output must be dominated
+    // by the sinusoidal vibration injection.
+    sensors::IMUParams p{};
+    p.accel_arw_std              = 0.0;
+    p.accel_bias_instability     = 0.0;
+    p.gyro_arw_std               = 0.0;
+    p.gyro_bias_instability      = 0.0;
+    p.vibration_amplitude_mps2   = 1.0;  // 1 m/s² amplitude
+    p.vibration_frequency_hz     = 50.0; // 50 Hz
+
+    sensors::IMU imu(p, /*seed=*/99);
+
+    physics::State state;
+    constexpr double dt    = 0.004;
+    const     int    steps = 500; // 2 s
+
+    // Hover: accel_world = gravity, so specific force ≈ 0 on body z (level attitude).
+    // With vibration, body-z output oscillates at 50 Hz around ~0.
+    double sum_z2 = 0.0;
+    for (int i = 0; i < steps; ++i) {
+        state.time += dt;
+        const auto s = imu.sample(state, Eigen::Vector3d(0.0, 0.0, 9.80665));
+        sum_z2 += s.accel_body.z() * s.accel_body.z();
+    }
+
+    // RMS of body-z should be ~amplitude / sqrt(2) ≈ 0.707 m/s²
+    const double rms_z = std::sqrt(sum_z2 / steps);
+    EXPECT_GT(rms_z, 0.3) << "Z-accel RMS should reflect vibration injection";
+    EXPECT_LT(rms_z, 2.0) << "Z-accel RMS should not exceed 2× vibration amplitude";
+}

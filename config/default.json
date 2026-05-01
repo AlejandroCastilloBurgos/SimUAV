@@ -36,10 +36,14 @@
   },
 
   "imu_params": {
-    "accel_noise_std": 0.005,
-    "accel_bias_std": 0.0001,
-    "gyro_noise_std": 0.0003,
-    "gyro_bias_std": 0.000005
+    "accel_arw_std": 0.005,
+    "accel_bias_instability": 0.0001,
+    "accel_bias_instability_tc_s": 300.0,
+    "gyro_arw_std": 0.0003,
+    "gyro_bias_instability": 0.000005,
+    "gyro_bias_instability_tc_s": 300.0,
+    "vibration_amplitude_mps2": 0.0,
+    "vibration_frequency_hz": 0.0
   },
 
   "gps_params": {

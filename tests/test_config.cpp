@@ -64,7 +64,7 @@ TEST(ConfigLoader, MissingKeysRetainDefaults) {
     EXPECT_EQ(cfg.mavlink_host, dflt.mavlink_host);
     EXPECT_EQ(cfg.mavlink_port, dflt.mavlink_port);
     EXPECT_DOUBLE_EQ(cfg.quad_params.mass, dflt.quad_params.mass);
-    EXPECT_DOUBLE_EQ(cfg.imu_params.accel_noise_std, dflt.imu_params.accel_noise_std);
+    EXPECT_DOUBLE_EQ(cfg.imu_params.accel_arw_std, dflt.imu_params.accel_arw_std);
     EXPECT_DOUBLE_EQ(cfg.gps_params.update_rate_hz, dflt.gps_params.update_rate_hz);
     EXPECT_DOUBLE_EQ(cfg.baro_params.noise_std_m, dflt.baro_params.noise_std_m);
     EXPECT_DOUBLE_EQ(cfg.mag_params.noise_std, dflt.mag_params.noise_std);
@@ -91,7 +91,7 @@ TEST(ConfigLoader, LoadsDefaultJsonFile) {
     EXPECT_GT(cfg.quad_params.mass, 0.0);
     EXPECT_GT(cfg.quad_params.k_thrust, 0.0);
     EXPECT_GT(cfg.gps_params.update_rate_hz, 0.0);
-    EXPECT_GT(cfg.imu_params.accel_noise_std, 0.0);
+    EXPECT_GT(cfg.imu_params.accel_arw_std, 0.0);
     EXPECT_GT(cfg.baro_params.noise_std_m, 0.0);
     EXPECT_GT(cfg.mag_params.noise_std, 0.0);
 }
