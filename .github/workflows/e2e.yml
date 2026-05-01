@@ -82,11 +82,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: pip-venv-${{ hashFiles('px4-autopilot/requirements.txt') }}
+          key: pip-venv-${{ hashFiles('px4-autopilot/Tools/setup/requirements.txt') }}
           restore-keys: pip-venv-
 
       - name: Install PX4 Python requirements
-        run: .venv/bin/pip install --upgrade pip -r px4-autopilot/requirements.txt
+        run: .venv/bin/pip install --upgrade pip -r px4-autopilot/Tools/setup/requirements.txt
 
       - name: Install pymavlink
         run: .venv/bin/pip install pymavlink
