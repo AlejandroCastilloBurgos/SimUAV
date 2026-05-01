@@ -15,6 +15,7 @@ add_executable(simuav_tests
     test_bridge.cpp
     test_ulog.cpp
     test_replay.cpp
+    test_simulator.cpp
 )
 
 target_link_libraries(simuav_tests PRIVATE
