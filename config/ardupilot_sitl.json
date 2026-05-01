@@ -5,6 +5,7 @@
   "firmware_target": "ardupilot",
   "json_log_path": "telemetry.json",
   "ulog_path": "telemetry.ulg",
+  "status_port": 14562,
 
   "quad_params": {
     "mass": 1.5,

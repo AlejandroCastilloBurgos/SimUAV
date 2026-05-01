@@ -27,6 +27,7 @@ Simulator::Simulator(SimConfig config)
     }())
     , json_log_(config_.json_log_path)
     , ulog_(config_.ulog_path)
+    , status_server_(config_.status_port)
 {}
 
 void Simulator::run() {
@@ -82,6 +83,18 @@ void Simulator::run() {
             }
         }
 
+        // Publish status at ~1 Hz (every 250 steps)
+        if (stats_.step_count % 250 == 0 && config_.status_port != 0) {
+            StatusSnapshot snap;
+            snap.sim_time          = model_.state().time;
+            snap.step_count        = stats_.step_count;
+            snap.overrun_count     = stats_.overrun_count;
+            snap.hil_sensor_sent   = hil_sensor_sent_;
+            snap.actuator_received = actuator_received_;
+            snap.baro_alt_m        = last_baro_alt_m_;
+            status_server_.publish(snap);
+        }
+
         std::this_thread::sleep_until(next_wake);
         next_wake += step_dur;
     }
@@ -95,7 +108,9 @@ void Simulator::stop() {
 
 void Simulator::step() {
     // 1. Pull actuator commands (non-blocking; keep last if none arrives)
+    const std::array<double, physics::kNumMotors> prev = motor_speeds_;
     mavlink_.receiveActuators(motor_speeds_);
+    if (motor_speeds_ != prev) ++actuator_received_;
 
     // 2. Wind disturbance
     const Eigen::Vector3d wind_ned = wind_.sample();
@@ -115,8 +130,11 @@ void Simulator::step() {
     sensors::GPSSample gps_s{};
     const bool new_gps = gps_.sample(s, gps_s);
 
+    last_baro_alt_m_ = baro_s.altitude_m;
+
     // 6. Send HIL messages
     mavlink_.sendHilSensor(imu_s, baro_s, mag_s);
+    ++hil_sensor_sent_;
     if (new_gps) mavlink_.sendHilGps(gps_s);
 
     // 7. Log

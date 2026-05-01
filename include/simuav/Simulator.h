@@ -1,5 +1,6 @@
 #pragma once
 #include "simuav/FirmwareTarget.h"
+#include "simuav/StatusServer.h"
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/physics/WindModel.h"
 #include "simuav/sensors/IMU.h"
@@ -27,8 +28,9 @@ struct SimConfig {
     std::string    mavlink_host{"127.0.0.1"};
     uint16_t       mavlink_port{14560};
     FirmwareTarget firmware_target{FirmwareTarget::PX4};
-    std::string json_log_path{"telemetry.json"};
-    std::string ulog_path{"telemetry.ulg"};
+    std::string    json_log_path{"telemetry.json"};
+    std::string    ulog_path{"telemetry.ulg"};
+    uint16_t       status_port{14562};         // UDP port for status datagrams (0 = disabled)
 
     physics::QuadrotorParams quad_params{};
     physics::WindParams      wind_params{};
@@ -75,6 +77,10 @@ private:
     std::array<double, physics::kNumMotors> motor_speeds_{};
     std::atomic<bool> running_{false};
     LoopStats         stats_{};
+    StatusServer      status_server_;
+    uint64_t          hil_sensor_sent_{0};
+    uint64_t          actuator_received_{0};
+    float             last_baro_alt_m_{0.0f};
 };
 
 }  // namespace simuav

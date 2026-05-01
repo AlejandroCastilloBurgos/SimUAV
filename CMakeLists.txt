@@ -43,6 +43,7 @@ add_library(simuav_lib STATIC
     src/logging/ULogLogger.cpp
     src/Simulator.cpp
     src/LogReplayer.cpp
+    src/StatusServer.cpp
 )
 
 target_include_directories(simuav_lib PUBLIC
