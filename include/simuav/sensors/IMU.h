@@ -6,10 +6,19 @@
 namespace simuav::sensors {
 
 struct IMUParams {
-    double accel_noise_std{0.005};    // m/s², white noise per axis
-    double accel_bias_std{0.0001};    // m/s², bias random-walk std per step
-    double gyro_noise_std{0.0003};    // rad/s, white noise per axis
-    double gyro_bias_std{0.000005};   // rad/s, bias random-walk std per step
+    // Accelerometer
+    double accel_arw_std{0.005};               // m/s², angle random walk (white noise) per axis
+    double accel_bias_instability{0.0001};     // m/s², Gauss-Markov bias instability σ
+    double accel_bias_instability_tc_s{300.0}; // s, Gauss-Markov correlation time
+
+    // Gyroscope
+    double gyro_arw_std{0.0003};               // rad/s, white noise per axis
+    double gyro_bias_instability{0.000005};    // rad/s, Gauss-Markov bias instability σ
+    double gyro_bias_instability_tc_s{300.0};  // s, Gauss-Markov correlation time
+
+    // Rotor-frequency vibration injected on body-Z accelerometer
+    double vibration_amplitude_mps2{0.0};  // m/s², 0 = disabled
+    double vibration_frequency_hz{0.0};    // Hz
 };
 
 struct IMUSample {
@@ -31,6 +40,7 @@ private:
     IMUParams       params_;
     Eigen::Vector3d accel_bias_{Eigen::Vector3d::Zero()};
     Eigen::Vector3d gyro_bias_{Eigen::Vector3d::Zero()};
+    double          last_time_{-1.0}; // negative sentinel: dt defaults to 0.004 on first call
 };
 
 }  // namespace simuav::sensors

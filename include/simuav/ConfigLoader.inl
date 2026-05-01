@@ -69,10 +69,14 @@ inline SimConfig loadConfig(const std::string& path) {
     if (j.contains("imu_params")) {
         const auto& i  = j.at("imu_params");
         auto& p        = cfg.imu_params;
-        p.accel_noise_std = i.value("accel_noise_std", p.accel_noise_std);
-        p.accel_bias_std  = i.value("accel_bias_std",  p.accel_bias_std);
-        p.gyro_noise_std  = i.value("gyro_noise_std",  p.gyro_noise_std);
-        p.gyro_bias_std   = i.value("gyro_bias_std",   p.gyro_bias_std);
+        p.accel_arw_std                = i.value("accel_arw_std",                p.accel_arw_std);
+        p.accel_bias_instability       = i.value("accel_bias_instability",       p.accel_bias_instability);
+        p.accel_bias_instability_tc_s  = i.value("accel_bias_instability_tc_s",  p.accel_bias_instability_tc_s);
+        p.gyro_arw_std                 = i.value("gyro_arw_std",                 p.gyro_arw_std);
+        p.gyro_bias_instability        = i.value("gyro_bias_instability",        p.gyro_bias_instability);
+        p.gyro_bias_instability_tc_s   = i.value("gyro_bias_instability_tc_s",   p.gyro_bias_instability_tc_s);
+        p.vibration_amplitude_mps2     = i.value("vibration_amplitude_mps2",     p.vibration_amplitude_mps2);
+        p.vibration_frequency_hz       = i.value("vibration_frequency_hz",       p.vibration_frequency_hz);
     }
 
     if (j.contains("gps_params")) {

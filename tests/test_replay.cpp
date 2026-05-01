@@ -46,10 +46,10 @@ void writeFixture() {
 // Returns sensor param sets with all noise and bias zeroed for deterministic tests.
 simuav::sensors::IMUParams zeroIMU() {
     simuav::sensors::IMUParams p;
-    p.accel_noise_std = 0.0;
-    p.accel_bias_std  = 0.0;
-    p.gyro_noise_std  = 0.0;
-    p.gyro_bias_std   = 0.0;
+    p.accel_arw_std          = 0.0;
+    p.accel_bias_instability = 0.0;
+    p.gyro_arw_std           = 0.0;
+    p.gyro_bias_instability  = 0.0;
     return p;
 }
 
