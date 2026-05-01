@@ -23,7 +23,9 @@ TEST(QuadrotorModel, InitialisesToZeroState) {
 }
 
 TEST(QuadrotorModel, HoverKeepsAltitudeStable) {
-    QuadrotorModel model;
+    QuadrotorParams p;
+    p.motor_time_constant_s = 0.0; // instant actuators — testing physics integration only
+    QuadrotorModel model(p);
     const double w = hoverSpeed();
     const std::array<double, kNumMotors> motors{w, w, w, w};
 
@@ -137,6 +139,82 @@ TEST(WindModel, DrydenVarianceMatchesSigma) {
     EXPECT_NEAR(var[0], p.dryden_sigma_u * p.dryden_sigma_u, 0.2 * p.dryden_sigma_u * p.dryden_sigma_u);
     EXPECT_NEAR(var[1], p.dryden_sigma_v * p.dryden_sigma_v, 0.2 * p.dryden_sigma_v * p.dryden_sigma_v);
     EXPECT_NEAR(var[2], p.dryden_sigma_w * p.dryden_sigma_w, 0.2 * p.dryden_sigma_w * p.dryden_sigma_w);
+}
+
+// ── MotorLag ─────────────────────────────────────────────────────────────────
+
+TEST(MotorLag, ZeroTimeConstantIsInstantaneous) {
+    // With τ=0 the model should behave identically to the no-lag codebase.
+    QuadrotorParams p_lag, p_ref;
+    p_lag.motor_time_constant_s = 0.0;
+    p_ref.motor_time_constant_s = 0.0;
+
+    QuadrotorModel lag_model(p_lag);
+    QuadrotorModel ref_model(p_ref);
+
+    const double w = hoverSpeed();
+    const std::array<double, 4> cmd{w, w, w, w};
+    constexpr double dt = 0.004;
+
+    for (int i = 0; i < 25; ++i) {
+        lag_model.integrate(cmd, dt);
+        ref_model.integrate(cmd, dt);
+    }
+
+    EXPECT_NEAR(lag_model.state().position.z(),
+                ref_model.state().position.z(), 1e-9);
+}
+
+TEST(MotorLag, StepResponseAltitudeLowerThanNoLag) {
+    // With τ=0.04 s, altitude after 1τ (0.04 s) must be higher (less fallen)
+    // than in the zero-lag case because thrust builds up slower.
+    // NED: z is positive downward, so "less fallen" means a more negative or
+    // less positive z. At hover command from rest the quad climbs, so less
+    // thrust → less climb (z closer to 0 / more positive in NED).
+    QuadrotorParams p_lag, p_nolag;
+    p_lag.motor_time_constant_s   = 0.04;
+    p_nolag.motor_time_constant_s = 0.0;
+
+    QuadrotorModel lag_model(p_lag);
+    QuadrotorModel nolag_model(p_nolag);
+
+    const double w = hoverSpeed();
+    const std::array<double, 4> cmd{w, w, w, w};
+    constexpr double dt     = 0.004;
+    const     int    steps  = static_cast<int>(0.04 / dt); // 1 τ
+
+    for (int i = 0; i < steps; ++i) {
+        lag_model.integrate(cmd, dt);
+        nolag_model.integrate(cmd, dt);
+    }
+
+    // In NED z<0 = up. At 1τ the no-lag model climbs faster → more negative z.
+    EXPECT_LT(nolag_model.state().position.z(),
+              lag_model.state().position.z())
+        << "No-lag model should have climbed further (more negative NED-z) at 1τ";
+}
+
+TEST(MotorLag, ConvergesWithinFiveTau) {
+    // After 5τ the first-order filter should have driven actual motor speed to
+    // within 1% of commanded speed (theoretical residual: e^(-5) ≈ 0.67%).
+    QuadrotorParams p;
+    p.motor_time_constant_s = 0.04;
+
+    QuadrotorModel model(p);
+    const double w = hoverSpeed();
+    const std::array<double, 4> cmd{w, w, w, w};
+    constexpr double dt    = 0.004;
+    const     int    steps = static_cast<int>(5.0 * 0.04 / dt); // 5 τ
+
+    for (int i = 0; i < steps; ++i) {
+        model.integrate(cmd, dt);
+    }
+
+    for (int i = 0; i < kNumMotors; ++i) {
+        const double actual = model.motorSpeedsActual()[i];
+        EXPECT_NEAR(actual, w, 0.01 * w)
+            << "Motor " << i << " should be within 1% of commanded speed after 5τ";
+    }
 }
 
 TEST(WindModel, WhiteNoiseFallbackWorks) {

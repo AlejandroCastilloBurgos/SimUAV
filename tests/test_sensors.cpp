@@ -38,9 +38,10 @@ TEST(IMU, HoverAccelFromPhysicsModelIsNearG) {
     // Verifies the fix for the accel_world=0 stub: after running the physics
     // model at hover speed, lastAccelWorld() fed into the IMU must produce
     // specific force magnitude ≈ g on body -Z (level attitude).
-    physics::QuadrotorModel model;
-    const double w = std::sqrt((physics::QuadrotorParams{}.mass * 9.80665) /
-                               (4.0 * physics::QuadrotorParams{}.k_thrust));
+    physics::QuadrotorParams p;
+    p.motor_time_constant_s = 0.0; // instant actuators — testing IMU math only
+    physics::QuadrotorModel model(p);
+    const double w = std::sqrt((p.mass * 9.80665) / (4.0 * p.k_thrust));
     const std::array<double, physics::kNumMotors> motors{w, w, w, w};
 
     // Settle for 0.5 s so velocity/drag reach equilibrium
