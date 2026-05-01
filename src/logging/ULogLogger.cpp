@@ -101,7 +101,8 @@ void ULogLogger::writeSubscriptionMessage(const char* topic_name, uint16_t msg_i
 
 void ULogLogger::log(const physics::State&      state,
                       const sensors::IMUSample&  imu,
-                      const sensors::BaroSample& baro)
+                      const sensors::BaroSample& baro,
+                      const sensors::GPSSample&  gps)
 {
     if (!file_.is_open()) return;
 
@@ -119,32 +120,92 @@ void ULogLogger::log(const physics::State&      state,
         header_written_ = true;
     }
 
-    // DATA message payload: msg_id (2 bytes) + struct fields
-    struct __attribute__((packed)) Payload {
-        uint16_t msg_id;
-        float x, y, z;
-        float vx, vy, vz;
-        float ax, ay, az;
-        float baro_alt;
-    };
+    // Each call writes one DATA record per subscribed topic.
+    // msg_size = sizeof(payload) + 1 (for the msg_type byte).
 
-    Payload pl{};
-    pl.msg_id   = kMsgIdLocalPos;
-    pl.x        = static_cast<float>(state.position.x());
-    pl.y        = static_cast<float>(state.position.y());
-    pl.z        = static_cast<float>(state.position.z());
-    pl.vx       = static_cast<float>(state.velocity.x());
-    pl.vy       = static_cast<float>(state.velocity.y());
-    pl.vz       = static_cast<float>(state.velocity.z());
-    pl.ax       = static_cast<float>(imu.accel_body.x());
-    pl.ay       = static_cast<float>(imu.accel_body.y());
-    pl.az       = static_cast<float>(imu.accel_body.z());
-    pl.baro_alt = baro.altitude_m;
+    {
+        struct __attribute__((packed)) LocalPosPayload {
+            uint16_t msg_id;
+            float x, y, z;
+            float vx, vy, vz;
+            float ax, ay, az;
+            float baro_alt;
+        };
+        LocalPosPayload pl{};
+        pl.msg_id   = kMsgIdLocalPos;
+        pl.x        = static_cast<float>(state.position.x());
+        pl.y        = static_cast<float>(state.position.y());
+        pl.z        = static_cast<float>(state.position.z());
+        pl.vx       = static_cast<float>(state.velocity.x());
+        pl.vy       = static_cast<float>(state.velocity.y());
+        pl.vz       = static_cast<float>(state.velocity.z());
+        pl.ax       = static_cast<float>(imu.accel_body.x());
+        pl.ay       = static_cast<float>(imu.accel_body.y());
+        pl.az       = static_cast<float>(imu.accel_body.z());
+        pl.baro_alt = baro.altitude_m;
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
 
-    const uint16_t msg_size = sizeof(pl) + 1; // +1 for msg_type byte
-    writeU16(msg_size);
-    writeByte(kMsgData);
-    writeBytes(&pl, sizeof(pl));
+    {
+        struct __attribute__((packed)) ImuPayload {
+            uint16_t msg_id;
+            float ax, ay, az;
+            float gx, gy, gz;
+        };
+        ImuPayload pl{};
+        pl.msg_id = kMsgIdImu;
+        pl.ax     = static_cast<float>(imu.accel_body.x());
+        pl.ay     = static_cast<float>(imu.accel_body.y());
+        pl.az     = static_cast<float>(imu.accel_body.z());
+        pl.gx     = static_cast<float>(imu.gyro_body.x());
+        pl.gy     = static_cast<float>(imu.gyro_body.y());
+        pl.gz     = static_cast<float>(imu.gyro_body.z());
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
+
+    {
+        struct __attribute__((packed)) GpsPayload {
+            uint16_t msg_id;
+            double   lat, lon;
+            float    alt;
+            float    vn, ve, vd;
+            float    eph, epv;
+        };
+        GpsPayload pl{};
+        pl.msg_id = kMsgIdGps;
+        pl.lat    = gps.latitude_deg;
+        pl.lon    = gps.longitude_deg;
+        pl.alt    = gps.altitude_m;
+        pl.vn     = gps.velocity_n;
+        pl.ve     = gps.velocity_e;
+        pl.vd     = gps.velocity_d;
+        pl.eph    = gps.eph;
+        pl.epv    = gps.epv;
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
+
+    {
+        struct __attribute__((packed)) AirDataPayload {
+            uint16_t msg_id;
+            float    pressure_pa;
+            float    altitude_m;
+            float    temperature_c;
+        };
+        AirDataPayload pl{};
+        pl.msg_id      = kMsgIdAirData;
+        pl.pressure_pa = baro.pressure_pa;
+        pl.altitude_m  = baro.altitude_m;
+        pl.temperature_c = baro.temperature_c;
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
 }
 
 }  // namespace simuav::logging

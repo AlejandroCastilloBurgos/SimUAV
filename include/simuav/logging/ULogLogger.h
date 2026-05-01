@@ -1,6 +1,7 @@
 #pragma once
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/sensors/IMU.h"
+#include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
 
 #include <fstream>
@@ -25,9 +26,10 @@ public:
 
     bool isOpen() const { return file_.is_open(); }
 
-    void log(const physics::State&     state,
-             const sensors::IMUSample& imu,
-             const sensors::BaroSample& baro);
+    void log(const physics::State&      state,
+             const sensors::IMUSample&  imu,
+             const sensors::BaroSample& baro,
+             const sensors::GPSSample&  gps);
 
 private:
     void writeFileHeader();
