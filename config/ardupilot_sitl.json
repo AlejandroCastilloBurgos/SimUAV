@@ -1,0 +1,65 @@
+{
+  "dt": 0.004,
+  "mavlink_host": "127.0.0.1",
+  "mavlink_port": 9002,
+  "firmware_target": "ardupilot",
+  "json_log_path": "telemetry.json",
+  "ulog_path": "telemetry.ulg",
+
+  "quad_params": {
+    "mass": 1.5,
+    "arm_length": 0.225,
+    "k_thrust": 9.18e-6,
+    "k_drag": 1.35e-7,
+    "aero_drag": 0.25,
+    "inertia_diag": [0.029, 0.029, 0.055],
+    "max_motor_speed": 838.0,
+    "esc_exponent": 0.5,
+    "motor_spin_min": 0.0,
+    "use_rk4": true,
+    "motor_time_constant_s": 0.04
+  },
+
+  "wind_params": {
+    "mean_ned": [0.0, 0.0, 0.0],
+    "gust_probability": 0.005,
+    "gust_magnitude": 3.0,
+    "use_dryden": true,
+    "turbulence_std": 0.5,
+    "dryden_airspeed": 15.0,
+    "dryden_length_u": 200.0,
+    "dryden_length_v": 200.0,
+    "dryden_length_w": 50.0,
+    "dryden_sigma_u": 1.5,
+    "dryden_sigma_v": 1.5,
+    "dryden_sigma_w": 0.75
+  },
+
+  "imu_params": {
+    "accel_noise_std": 0.005,
+    "accel_bias_std": 0.0001,
+    "gyro_noise_std": 0.0003,
+    "gyro_bias_std": 0.000005
+  },
+
+  "gps_params": {
+    "lat_ref_deg": 47.397742,
+    "lon_ref_deg": 8.545594,
+    "alt_ref_m": 488.0,
+    "pos_noise_std_m": 1.5,
+    "alt_noise_std_m": 2.5,
+    "vel_noise_std": 0.1,
+    "update_rate_hz": 5.0
+  },
+
+  "baro_params": {
+    "alt_ref_m": 488.0,
+    "noise_std_m": 0.3,
+    "temperature_c": 20.0
+  },
+
+  "mag_params": {
+    "earth_field_ned": [0.21462, 0.00571, 0.42663],
+    "noise_std": 0.005
+  }
+}

@@ -91,6 +91,39 @@ SimUAV speaks the MAVLink HIL protocol over UDP:
 
 ---
 
+## Connecting to ArduPilot SITL
+
+SimUAV supports ArduPilot Copter SITL via the `ardupilotmega` MAVLink dialect.
+Motor commands arrive as `RC_CHANNELS_OVERRIDE` (PWM 1000–2000 µs) instead of
+`HIL_ACTUATOR_CONTROLS`.
+
+| Direction | Port | Message |
+|-----------|------|---------|
+| SimUAV → ArduPilot | 9002 | `HIL_SENSOR` (250 Hz), `HIL_GPS` (5 Hz) |
+| ArduPilot → SimUAV | 9003 | `RC_CHANNELS_OVERRIDE` |
+
+**Quickstart:**
+
+1. Start ArduPilot Copter SITL (headless):
+   ```bash
+   # In the ardupilot repo:
+   Tools/autotest/sim_vehicle.py --vehicle ArduCopter --frame quad --no-rebuild
+   ```
+
+2. In a second terminal, start SimUAV with the ArduPilot config:
+   ```bash
+   ./build/simuav --config config/ardupilot_sitl.json
+   ```
+
+3. ArduPilot and SimUAV will handshake automatically. Use MAVProxy or
+   QGroundControl on port 14550 to monitor state.
+
+> **Key config difference:** `config/ardupilot_sitl.json` sets
+> `"firmware_target": "ardupilot"` and `"mavlink_port": 9002`.
+> These match ArduPilot SITL's default HIL port layout.
+
+---
+
 ## Architecture
 
 SimUAV runs a deterministic 250 Hz loop. Each step follows a fixed order:

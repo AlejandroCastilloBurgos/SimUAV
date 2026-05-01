@@ -1,0 +1,108 @@
+name: E2E (ArduPilot SITL)
+
+on:
+  schedule:
+    # Nightly at 03:00 UTC — not on every PR due to ArduPilot build time
+    - cron: "0 3 * * *"
+  workflow_dispatch:   # allow manual runs
+
+jobs:
+  e2e-ardupilot-sitl:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── SimUAV build ──────────────────────────────────────────────────────
+
+      - name: Install SimUAV dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libeigen3-dev build-essential gcc-12 g++-12
+
+      - name: Cache MAVLink headers
+        id: cache-mavlink
+        uses: actions/cache@v4
+        with:
+          path: third_party/mavlink-c-library
+          key: mavlink-c-library-v1
+
+      - name: Clone MAVLink headers
+        if: steps.cache-mavlink.outputs.cache-hit != 'true'
+        run: git clone --depth=1 https://github.com/mavlink/c_library_v2.git third_party/mavlink-c-library
+
+      - name: Cache CMake FetchContent downloads
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: cmake-deps-${{ hashFiles('CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: cmake-deps-
+
+      - name: Build SimUAV
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-12 \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DBUILD_TESTS=OFF
+          cmake --build build -j4
+
+      # ── ArduPilot SITL ────────────────────────────────────────────────────
+
+      - name: Install ArduPilot system dependencies
+        run: |
+          sudo apt-get install -y \
+            python3-venv python3-dev git wget \
+            libxml2-utils ninja-build
+
+      - name: Cache ArduPilot source
+        id: cache-ardupilot
+        uses: actions/cache@v4
+        with:
+          path: ardupilot
+          key: ardupilot-copter-4.5-${{ runner.os }}
+
+      - name: Clone ArduPilot
+        if: steps.cache-ardupilot.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth=1 --branch ArduCopter-4.5.0 \
+            https://github.com/ArduPilot/ardupilot.git ardupilot
+          cd ardupilot
+          git submodule update --init --recursive --depth=1
+
+      - name: Set up Python venv
+        run: python3 -m venv .venv
+
+      - name: Cache pip venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: pip-venv-ap-${{ hashFiles('ardupilot/requirements.txt') }}
+          restore-keys: pip-venv-ap-
+
+      - name: Install ArduPilot Python requirements
+        run: .venv/bin/pip install --upgrade pip -r ardupilot/requirements.txt
+
+      - name: Install pymavlink
+        run: .venv/bin/pip install pymavlink
+
+      # ── Run end-to-end test ───────────────────────────────────────────────
+
+      - name: Run E2E test
+        run: |
+          .venv/bin/python3 scripts/e2e_ardupilot_sitl.py \
+            --ardupilot-src ardupilot \
+            --simuav ./build/simuav \
+            --gps-timeout 60 \
+            --arm-timeout 90
+
+      - name: Upload telemetry on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemetry-ardupilot-e2e
+          path: |
+            telemetry.ulg
+            telemetry.json
+          if-no-files-found: ignore
