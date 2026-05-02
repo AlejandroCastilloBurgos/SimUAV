@@ -123,23 +123,33 @@ def main() -> int:
 
     px4_proc    = None
     simuav_proc = None
+    px4_stderr_log = None
 
     try:
         # 1. Start PX4 SITL (headless, iris airframe, no UI)
         _info(f"Starting PX4 SITL from {args.px4_src} ...")
         px4_env = {**os.environ, "HEADLESS": "1", "PX4_SIM_MODEL": "iris"}
+        px4_stderr_log = open("/tmp/px4_sitl_stderr.log", "w")
         px4_proc = subprocess.Popen(
             ["make", "px4_sitl_default", "none_iris"],
             cwd=args.px4_src,
             env=px4_env,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=px4_stderr_log,
         )
 
         # Give PX4 a moment to bind its UDP ports before SimUAV connects
         time.sleep(3)
 
         if px4_proc.poll() is not None:
+            px4_stderr_log.flush()
+            px4_stderr_log.close()
+            try:
+                with open("/tmp/px4_sitl_stderr.log") as f:
+                    tail = f.read()[-4000:]
+                _info(f"PX4 stderr (last 4000 chars):\n{tail}")
+            except OSError:
+                pass
             _die(f"PX4 SITL exited early with code {px4_proc.returncode}")
 
         # 2. Start SimUAV
@@ -188,6 +198,11 @@ def main() -> int:
             _terminate(simuav_proc)
         if px4_proc:
             _terminate(px4_proc)
+        try:
+            if px4_stderr_log is not None:
+                px4_stderr_log.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
