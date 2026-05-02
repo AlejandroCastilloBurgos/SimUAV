@@ -33,6 +33,11 @@ bool GPS::sample(const physics::State& state, GPSSample& out) {
     last_sample_.velocity_e = static_cast<float>(state.velocity.y() + white(params_.vel_noise_std));
     last_sample_.velocity_d = static_cast<float>(state.velocity.z() + white(params_.vel_noise_std));
 
+    last_sample_.eph      = static_cast<float>(params_.pos_noise_std_m);
+    last_sample_.epv      = static_cast<float>(params_.alt_noise_std_m);
+    last_sample_.num_sats = params_.num_sats;
+    last_sample_.fix_type = params_.fix_type;
+
     out = last_sample_;
     return true;
 }

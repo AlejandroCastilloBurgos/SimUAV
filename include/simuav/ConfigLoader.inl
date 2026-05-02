@@ -90,6 +90,8 @@ inline SimConfig loadConfig(const std::string& path) {
         p.alt_noise_std_m  = g.value("alt_noise_std_m",  p.alt_noise_std_m);
         p.vel_noise_std    = g.value("vel_noise_std",    p.vel_noise_std);
         p.update_rate_hz   = g.value("update_rate_hz",   p.update_rate_hz);
+        p.num_sats         = g.value("num_sats",         p.num_sats);
+        p.fix_type         = g.value("fix_type",         p.fix_type);
     }
 
     if (j.contains("baro_params")) {
