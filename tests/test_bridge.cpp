@@ -58,6 +58,40 @@ TEST(MavLinkDialect, ArduPilotRcChannelsOverrideId) {
     EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE), 70u);
 }
 
+// ── HIL_SENSOR fields_updated bitmask ────────────────────────────────────────
+//
+// Regression test for the bitmask used in MAVLinkBridge::sendHilSensor.
+// The old value (0b111111111111 = 4095) set DIFF_PRESSURE (bit 10) and
+// cleared TEMPERATURE (bit 12). The corrected symbolic constant must invert
+// that: DIFF_PRESSURE clear, TEMPERATURE set.
+
+TEST(HilSensorBitmask, CorrectBitmaskValue) {
+    constexpr uint32_t kCorrect =
+        HIL_SENSOR_UPDATED_XACC         |
+        HIL_SENSOR_UPDATED_YACC         |
+        HIL_SENSOR_UPDATED_ZACC         |
+        HIL_SENSOR_UPDATED_XGYRO        |
+        HIL_SENSOR_UPDATED_YGYRO        |
+        HIL_SENSOR_UPDATED_ZGYRO        |
+        HIL_SENSOR_UPDATED_XMAG         |
+        HIL_SENSOR_UPDATED_YMAG         |
+        HIL_SENSOR_UPDATED_ZMAG         |
+        HIL_SENSOR_UPDATED_ABS_PRESSURE |
+        HIL_SENSOR_UPDATED_PRESSURE_ALT |
+        HIL_SENSOR_UPDATED_TEMPERATURE;
+
+    EXPECT_EQ(kCorrect, 7167u);  // 1+2+4+8+16+32+64+128+256+512+2048+4096
+
+    EXPECT_NE(kCorrect & HIL_SENSOR_UPDATED_TEMPERATURE,   0u) << "TEMPERATURE bit must be set";
+    EXPECT_EQ(kCorrect & HIL_SENSOR_UPDATED_DIFF_PRESSURE, 0u) << "DIFF_PRESSURE bit must be clear";
+}
+
+TEST(HilSensorBitmask, OldBitmaskWasWrong) {
+    constexpr uint32_t kOld = 0b111111111111u; // 4095 — the pre-fix value
+    EXPECT_NE(kOld & HIL_SENSOR_UPDATED_DIFF_PRESSURE, 0u) << "old value incorrectly set DIFF_PRESSURE";
+    EXPECT_EQ(kOld & HIL_SENSOR_UPDATED_TEMPERATURE,   0u) << "old value incorrectly cleared TEMPERATURE";
+}
+
 TEST(MavLinkDialect, ArduPilotPwmNormalisation) {
     // 1000 µs → throttle 0.0, 1500 µs → 0.5, 2000 µs → 1.0
     auto pwmToSpeed = [](uint16_t pwm) {

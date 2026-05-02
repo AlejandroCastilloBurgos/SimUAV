@@ -73,8 +73,22 @@ void MAVLinkBridge::sendHilSensor(const sensors::IMUSample&  imu,
     mavlink_message_t msg{};
     const uint64_t time_us = static_cast<uint64_t>(imu.timestamp * 1e6);
 
-    // fields_updated bitmask: accel(0-2) + gyro(3-5) + mag(6-8) + baro(9-11)
-    constexpr uint32_t kAllSensors = 0b111111111111u;
+    // fields_updated: every field we populate, using the typed enum from common.h.
+    // DIFF_PRESSURE is excluded (not modelled — field is 0.0f).
+    // TEMPERATURE is included (populated from the barometer ISA model).
+    constexpr uint32_t kAllSensors =
+        HIL_SENSOR_UPDATED_XACC        |
+        HIL_SENSOR_UPDATED_YACC        |
+        HIL_SENSOR_UPDATED_ZACC        |
+        HIL_SENSOR_UPDATED_XGYRO       |
+        HIL_SENSOR_UPDATED_YGYRO       |
+        HIL_SENSOR_UPDATED_ZGYRO       |
+        HIL_SENSOR_UPDATED_XMAG        |
+        HIL_SENSOR_UPDATED_YMAG        |
+        HIL_SENSOR_UPDATED_ZMAG        |
+        HIL_SENSOR_UPDATED_ABS_PRESSURE |
+        HIL_SENSOR_UPDATED_PRESSURE_ALT |
+        HIL_SENSOR_UPDATED_TEMPERATURE;
 
     mavlink_msg_hil_sensor_pack(
         params_.system_id, params_.component_id, &msg,
