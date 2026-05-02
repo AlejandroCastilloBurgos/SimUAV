@@ -9,10 +9,12 @@ static constexpr double kTwoPi   = 6.283185307179586;
 IMU::IMU(IMUParams params, uint64_t seed)
     : SensorBase(seed), params_(std::move(params)) {}
 
-// Advance one Gauss-Markov axis: b_new = (1 - dt/τ)*b + sqrt(2σ²/τ)*N(0,1)*sqrt(dt)
+// Advance one Gauss-Markov axis: b_new = exp(-dt/τ)*b + sqrt(2σ²/τ)*N(0,1)*sqrt(dt)
+// exp(-dt/τ) is used instead of the first-order approximation (1 - dt/τ) because the
+// linearisation goes negative when dt ≥ τ, causing the bias to oscillate and diverge.
 static double gaussMarkovStep(double b, double dt, double tau, double sigma, double noise) {
     if (tau <= 0.0) return b; // degenerate — leave unchanged
-    const double decay    = 1.0 - dt / tau;
+    const double decay    = std::exp(-dt / tau);
     const double drive_sd = std::sqrt(2.0 * sigma * sigma / tau) * std::sqrt(dt);
     return decay * b + drive_sd * noise;
 }
