@@ -5,9 +5,9 @@
 namespace simuav::sensors {
 
 struct BaroParams {
-    double alt_ref_m{488.0};         // MSL altitude of reference origin
-    double noise_std_m{0.3};         // m equivalent altitude noise
-    double temperature_c{20.0};      // ambient temperature (currently fixed)
+    double alt_ref_m{488.0};              // MSL altitude of reference origin
+    double noise_std_m{0.3};             // m equivalent altitude noise
+    double ground_temp_offset_c{0.0};    // non-standard day offset added to ISA temperature (°C)
 };
 
 struct BaroSample {

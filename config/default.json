@@ -60,7 +60,7 @@
   "baro_params": {
     "alt_ref_m": 488.0,
     "noise_std_m": 0.3,
-    "temperature_c": 20.0
+    "ground_temp_offset_c": 0.0
   },
 
   "mag_params": {

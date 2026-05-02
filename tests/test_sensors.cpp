@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <cmath>
 #include "simuav/sensors/IMU.h"
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
@@ -106,6 +107,51 @@ TEST(Barometer, PressureDecreasesWithAltitude) {
     const auto low  = baro.sample(s_low);
     const auto high = baro.sample(s_high);
     EXPECT_LT(high.pressure_pa, low.pressure_pa);
+}
+
+TEST(Barometer, TemperatureDecreasesWithAltitude) {
+    sensors::BaroParams p;
+    p.alt_ref_m   = 0.0;
+    p.noise_std_m = 0.0;
+    sensors::Barometer baro(p);
+
+    physics::State s_sea  = makeHoverState(); s_sea.position.z()  =    0.0;  // 0 m
+    physics::State s_high = makeHoverState(); s_high.position.z() = -5000.0; // 5000 m up
+
+    const auto sea  = baro.sample(s_sea);
+    const auto high = baro.sample(s_high);
+
+    EXPECT_LT(high.temperature_c, sea.temperature_c) << "temperature must decrease with altitude";
+
+    // ISA at 5000 m: T = 288.15 - 0.0065*5000 = 255.65 K = -17.5 °C
+    EXPECT_NEAR(high.temperature_c, -17.5f, 0.1f) << "temperature at 5000 m must match ISA";
+}
+
+TEST(Barometer, TemperatureConsistentWithPressure) {
+    // Back-calculate altitude from the returned pressure using the ISA formula
+    // and verify it matches altitude_m to within 1 m.
+    static constexpr double kP0 = 101325.0;
+    static constexpr double kT0 = 288.15;
+    static constexpr double kL  = 0.0065;
+    static constexpr double kG  = 9.80665;
+    static constexpr double kM  = 0.0289644;
+    static constexpr double kR  = 8.31446;
+    static constexpr double kExp = (kG * kM) / (kR * kL);
+
+    sensors::BaroParams p;
+    p.alt_ref_m   = 0.0;
+    p.noise_std_m = 0.0;
+    sensors::Barometer baro(p);
+
+    physics::State s = makeHoverState();
+    s.position.z() = -2000.0; // 2000 m altitude (NED z negative = up)
+    const auto sample = baro.sample(s);
+
+    // Invert ISA pressure formula: h = (T0/L) * (1 - (P/P0)^(1/exponent))
+    const double ratio = static_cast<double>(sample.pressure_pa) / kP0;
+    const double alt_back = (kT0 / kL) * (1.0 - std::pow(ratio, 1.0 / kExp));
+    EXPECT_NEAR(alt_back, static_cast<double>(sample.altitude_m), 1.0)
+        << "back-calculated altitude must match reported altitude_m within 1 m";
 }
 
 // ── Magnetometer ─────────────────────────────────────────────────────────────

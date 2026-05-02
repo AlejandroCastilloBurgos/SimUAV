@@ -15,11 +15,15 @@ BaroSample Barometer::sample(const physics::State& state) {
     const double exponent = (kG * kM) / (kR * kL);
     const double pressure = kP0 * std::pow(1.0 - (kL * altitude_msl) / kT0, exponent);
 
+    // ISA temperature at altitude, plus optional non-standard day offset.
+    const double temperature_c = (kT0 - kL * altitude_msl) - 273.15
+                                  + params_.ground_temp_offset_c;
+
     BaroSample out;
-    out.timestamp    = state.time;
-    out.pressure_pa  = static_cast<float>(pressure);
-    out.altitude_m   = static_cast<float>(altitude_msl);
-    out.temperature_c = static_cast<float>(params_.temperature_c);
+    out.timestamp     = state.time;
+    out.pressure_pa   = static_cast<float>(pressure);
+    out.altitude_m    = static_cast<float>(altitude_msl);
+    out.temperature_c = static_cast<float>(temperature_c);
     return out;
 }
 
