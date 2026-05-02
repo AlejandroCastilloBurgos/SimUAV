@@ -96,6 +96,19 @@ TEST(ConfigLoader, LoadsDefaultJsonFile) {
     EXPECT_GT(cfg.mag_params.noise_std, 0.0);
 }
 
+TEST(ConfigLoader, LoadsGpsNumSatsAndFixType) {
+    const std::string path = writeTempJson(R"({
+        "gps_params": {
+            "num_sats": 8,
+            "fix_type": 2
+        }
+    })");
+
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_EQ(cfg.gps_params.num_sats, 8u);
+    EXPECT_EQ(cfg.gps_params.fix_type, 2u);
+}
+
 TEST(ConfigLoader, LoadsArduPilotSitlJsonFile) {
     const SimConfig cfg = loadConfig(
         std::string(SIMUAV_SOURCE_DIR) + "/config/ardupilot_sitl.json");

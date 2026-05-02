@@ -81,6 +81,24 @@ TEST(GPS, ThrottlesAtUpdateRate) {
     EXPECT_TRUE(gps.sample(s, out));
 }
 
+TEST(GPS, EphMatchesNoiseSigma) {
+    sensors::GPSParams p;
+    p.pos_noise_std_m = 3.0;
+    p.alt_noise_std_m = 5.0;
+    p.num_sats        = 8;
+    p.fix_type        = 3;
+    sensors::GPS gps(p);
+
+    physics::State s = makeHoverState();
+    sensors::GPSSample out;
+    ASSERT_TRUE(gps.sample(s, out));
+
+    EXPECT_FLOAT_EQ(out.eph, 3.0f);
+    EXPECT_FLOAT_EQ(out.epv, 5.0f);
+    EXPECT_EQ(out.num_sats, 8u);
+    EXPECT_EQ(out.fix_type, 3u);
+}
+
 // ── Barometer ────────────────────────────────────────────────────────────────
 
 TEST(Barometer, SeaLevelPressureNearP0) {

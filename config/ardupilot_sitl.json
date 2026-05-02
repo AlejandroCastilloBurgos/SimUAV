@@ -54,7 +54,9 @@
     "pos_noise_std_m": 1.5,
     "alt_noise_std_m": 2.5,
     "vel_noise_std": 0.1,
-    "update_rate_hz": 5.0
+    "update_rate_hz": 5.0,
+    "num_sats": 12,
+    "fix_type": 3
   },
 
   "baro_params": {

@@ -5,13 +5,15 @@
 namespace simuav::sensors {
 
 struct GPSParams {
-    double lat_ref_deg{47.397742};    // Reference origin latitude
-    double lon_ref_deg{8.545594};     // Reference origin longitude
-    double alt_ref_m{488.0};         // Reference origin altitude MSL
-    double pos_noise_std_m{1.5};     // m, horizontal position noise (1-sigma)
-    double alt_noise_std_m{2.5};     // m, vertical position noise
-    double vel_noise_std{0.1};       // m/s, velocity noise per axis
-    double update_rate_hz{5.0};      // Hz, GPS update rate
+    double  lat_ref_deg{47.397742};   // Reference origin latitude
+    double  lon_ref_deg{8.545594};    // Reference origin longitude
+    double  alt_ref_m{488.0};        // Reference origin altitude MSL
+    double  pos_noise_std_m{1.5};    // m, horizontal position noise (1-sigma) — also sets eph
+    double  alt_noise_std_m{2.5};    // m, vertical position noise — also sets epv
+    double  vel_noise_std{0.1};      // m/s, velocity noise per axis
+    double  update_rate_hz{5.0};     // Hz, GPS update rate
+    uint8_t num_sats{12};            // reported satellite count
+    uint8_t fix_type{3};             // 3 = 3D fix
 };
 
 struct GPSSample {
