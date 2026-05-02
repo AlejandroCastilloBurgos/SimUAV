@@ -207,6 +207,38 @@ TEST(IMUBiasGaussMarkov, BiasRemainsWithin3Sigma) {
         << "Gyro bias z should not diverge beyond 5σ after 5τ";
 }
 
+TEST(IMUBiasGaussMarkov, ShortTauDoesNotDiverge) {
+    // When tau == dt (one step), the first-order approximation (1 - dt/τ = 0) produces
+    // zero decay and the bias behaves as a random walk. The exact exp(-dt/τ) = exp(-1)
+    // keeps the bias bounded. This test ensures the implementation uses exp(-dt/τ).
+    sensors::IMUParams p{};
+    p.accel_arw_std               = 0.0;
+    p.accel_bias_instability      = 0.01; // σ_b = 10 mm/s²
+    p.accel_bias_instability_tc_s = 0.004; // τ = dt: worst case for linear approximation
+    p.gyro_arw_std                = 0.0;
+    p.gyro_bias_instability       = 0.0;
+
+    sensors::IMU imu(p, /*seed=*/123);
+    physics::State state;
+    constexpr double dt = 0.004;
+
+    // Run 100 steps — bias must stay within 20σ throughout.
+    // With the correct exp(-dt/τ) decay, the stationary std is ~1.5σ (theoretical).
+    // With the broken linear approximation (1 - dt/τ = 0 when τ=dt), the bias is a
+    // pure random walk and would grow far beyond 20σ within 100 steps.
+    for (int i = 0; i < 100; ++i) {
+        state.time += dt;
+        const auto s = imu.sample(state, Eigen::Vector3d(0.0, 0.0, 9.80665));
+        const double limit = 20.0 * p.accel_bias_instability;
+        ASSERT_LT(std::abs(s.accel_body.x()), limit)
+            << "Bias diverged at step " << i;
+        ASSERT_LT(std::abs(s.accel_body.y()), limit)
+            << "Bias diverged at step " << i;
+        ASSERT_LT(std::abs(s.accel_body.z()), limit)
+            << "Bias diverged at step " << i;
+    }
+}
+
 TEST(IMUVibration, ZAccelPowerDominatedByVibration) {
     // With vibration enabled and zero noise, the Z-accel output must be dominated
     // by the sinusoidal vibration injection.
