@@ -95,9 +95,9 @@ inline SimConfig loadConfig(const std::string& path) {
     if (j.contains("baro_params")) {
         const auto& b  = j.at("baro_params");
         auto& p        = cfg.baro_params;
-        p.alt_ref_m     = b.value("alt_ref_m",     p.alt_ref_m);
-        p.noise_std_m   = b.value("noise_std_m",   p.noise_std_m);
-        p.temperature_c = b.value("temperature_c", p.temperature_c);
+        p.alt_ref_m            = b.value("alt_ref_m",            p.alt_ref_m);
+        p.noise_std_m          = b.value("noise_std_m",          p.noise_std_m);
+        p.ground_temp_offset_c = b.value("ground_temp_offset_c", p.ground_temp_offset_c);
     }
 
     if (j.contains("mag_params")) {
