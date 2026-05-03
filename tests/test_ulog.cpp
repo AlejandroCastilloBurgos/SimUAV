@@ -180,3 +180,83 @@ TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
     EXPECT_TRUE(seen[2]) << "DATA msg_id 2 (vehicle_gps_position) missing";
     EXPECT_TRUE(seen[3]) << "DATA msg_id 3 (vehicle_air_data) missing";
 }
+
+TEST(ULogLogger, FormatStringsContainTimestampFirstField) {
+    // Each FORMAT body is a raw string; verify "uint64_t timestamp" appears
+    // before any other field separator for all four topics.
+    const std::string path = "/tmp/simuav_test_fmt_ts.ulg";
+    {
+        simuav::logging::ULogLogger logger(path);
+        simuav::physics::State      state;
+        simuav::sensors::IMUSample  imu;
+        simuav::sensors::BaroSample baro{};
+        simuav::sensors::GPSSample  gps{};
+        logger.log(state, imu, baro, gps);
+    }
+
+    std::ifstream f(path, std::ios::binary);
+    ASSERT_TRUE(f.is_open());
+    skipBytes(f, 16);  // file header
+
+    // Skip FLAG_BITS
+    { uint16_t sz = readU16(f); skipBytes(f, sz); }
+
+    int fmt_with_timestamp = 0;
+    for (int i = 0; i < 4; ++i) {
+        uint16_t msg_size = readU16(f);
+        uint8_t  msg_type = readU8(f);
+        ASSERT_EQ(0x46, msg_type);
+        std::string body(static_cast<std::size_t>(msg_size) - 1, '\0');
+        ASSERT_TRUE(readExact(f, body.data(), body.size()));
+
+        // FORMAT body: "topic_name:field1;field2;..."
+        // The first field after ':' must be "uint64_t timestamp"
+        auto colon = body.find(':');
+        ASSERT_NE(std::string::npos, colon) << "FORMAT " << i << " has no ':'";
+        const std::string fields = body.substr(colon + 1);
+        EXPECT_EQ(0u, fields.find("uint64_t timestamp;"))
+            << "FORMAT " << i << " first field is not 'uint64_t timestamp': " << body;
+        ++fmt_with_timestamp;
+    }
+    EXPECT_EQ(4, fmt_with_timestamp);
+}
+
+TEST(ULogLogger, DataTimestampMatchesStateTime) {
+    // Write two log entries at known simulation times and verify that the
+    // timestamp field in each DATA message encodes state.time in microseconds.
+    const std::string path = "/tmp/simuav_test_ts.ulg";
+    constexpr double kTime1 = 1.5;   // seconds
+    constexpr double kTime2 = 3.25;
+    {
+        simuav::logging::ULogLogger logger(path);
+        simuav::physics::State      state;
+        simuav::sensors::IMUSample  imu;
+        simuav::sensors::BaroSample baro{};
+        simuav::sensors::GPSSample  gps{};
+        state.time = kTime1;
+        logger.log(state, imu, baro, gps);
+        state.time = kTime2;
+        logger.log(state, imu, baro, gps);
+    }
+
+    std::ifstream f(path, std::ios::binary);
+    ASSERT_TRUE(f.is_open());
+    skipBytes(f, 16);
+    { uint16_t sz = readU16(f); skipBytes(f, sz); }       // FLAG_BITS
+    for (int i = 0; i < 4; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // FORMATs
+    for (int i = 0; i < 4; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // SUBs
+
+    // First DATA message (local_position, msg_id 0) written for kTime1.
+    {
+        uint16_t msg_size = readU16(f);
+        uint8_t  msg_type = readU8(f);
+        ASSERT_EQ(0x44, msg_type);
+        uint16_t msg_id = readU16(f);
+        EXPECT_EQ(0u, msg_id);
+        uint64_t ts = 0;
+        ASSERT_TRUE(readExact(f, &ts, 8));
+        EXPECT_EQ(static_cast<uint64_t>(kTime1 * 1.0e6), ts);
+        // Skip rest of payload
+        skipBytes(f, static_cast<std::size_t>(msg_size) - 1 - 2 - 8);
+    }
+}
