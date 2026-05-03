@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ardupilot
-          key: ardupilot-copter-4.5.7-${{ runner.os }}
+          key: ardupilot-copter-4.5.7-v2-${{ runner.os }}
 
       - name: Clone ArduPilot
         if: steps.cache-ardupilot.outputs.cache-hit != 'true'
@@ -78,14 +78,31 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: pip-venv-ap-${{ hashFiles('ardupilot/requirements.txt') }}
+          # ArduCopter-4.5 has no requirements.txt at the repo root.
+          # Only pymavlink is needed for our e2e script; pin the key to a
+          # static version so the cache rebuilds only when explicitly bumped.
+          key: pip-venv-ap-v2-${{ runner.os }}
           restore-keys: pip-venv-ap-
 
-      - name: Install ArduPilot Python requirements
-        run: .venv/bin/pip install --upgrade pip -r ardupilot/requirements.txt
+      - name: Install Python packages
+        # sim_vehicle.py and our e2e script only need pymavlink and future.
+        # ArduCopter-4.5 has no root-level requirements.txt.
+        run: .venv/bin/pip install --upgrade pip pymavlink future
 
-      - name: Install pymavlink
-        run: .venv/bin/pip install pymavlink
+      - name: Build ArduCopter SITL binary
+        # Build once; the result is included in the cached ardupilot/ directory.
+        # Skipped automatically when the cache hits (binary already present).
+        id: build-ardupilot
+        run: |
+          if [ ! -f ardupilot/build/sitl/bin/arducopter ]; then
+            cd ardupilot
+            python3 -m venv /tmp/waf-venv
+            /tmp/waf-venv/bin/pip install -q future
+            ./waf configure --board sitl
+            ./waf copter -j4
+          else
+            echo "ArduCopter SITL binary already present — skipping build"
+          fi
 
       # ── Run end-to-end test ───────────────────────────────────────────────
 
