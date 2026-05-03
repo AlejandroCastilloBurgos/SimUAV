@@ -27,6 +27,7 @@ struct SimConfig {
     double         dt{0.004};                  // s, physics timestep (250 Hz)
     std::string    mavlink_host{"127.0.0.1"};
     uint16_t       mavlink_port{14560};
+    uint16_t       mavlink_local_port{14561};    // UDP port the simulator binds to
     FirmwareTarget firmware_target{FirmwareTarget::PX4};
     std::string    json_log_path{"telemetry.json"};
     std::string    ulog_path{"telemetry.ulg"};
