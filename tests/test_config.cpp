@@ -94,6 +94,20 @@ TEST(ConfigLoader, LoadsDefaultJsonFile) {
     EXPECT_GT(cfg.imu_params.accel_arw_std, 0.0);
     EXPECT_GT(cfg.baro_params.noise_std_m, 0.0);
     EXPECT_GT(cfg.mag_params.noise_std, 0.0);
+
+    // status_port: disabled (0) or unprivileged port
+    EXPECT_TRUE(cfg.status_port == 0u || cfg.status_port >= 1024u);
+    // motor_time_constant_s: 0 (instantaneous) to <1 s physically
+    EXPECT_GE(cfg.quad_params.motor_time_constant_s, 0.0);
+    EXPECT_LT(cfg.quad_params.motor_time_constant_s, 1.0);
+    // IMU Gauss-Markov: instability ≥ 0, time constants > 0
+    EXPECT_GE(cfg.imu_params.accel_bias_instability,      0.0);
+    EXPECT_GT(cfg.imu_params.accel_bias_instability_tc_s, 0.0);
+    EXPECT_GE(cfg.imu_params.gyro_bias_instability,       0.0);
+    EXPECT_GT(cfg.imu_params.gyro_bias_instability_tc_s,  0.0);
+    // IMU vibration: amplitude and frequency non-negative
+    EXPECT_GE(cfg.imu_params.vibration_amplitude_mps2, 0.0);
+    EXPECT_GE(cfg.imu_params.vibration_frequency_hz,   0.0);
 }
 
 TEST(ConfigLoader, LoadsGpsNumSatsAndFixType) {
@@ -107,6 +121,59 @@ TEST(ConfigLoader, LoadsGpsNumSatsAndFixType) {
     const SimConfig cfg = loadConfig(path);
     EXPECT_EQ(cfg.gps_params.num_sats, 8u);
     EXPECT_EQ(cfg.gps_params.fix_type, 2u);
+}
+
+TEST(ConfigLoader, LoadsStatusPort) {
+    const std::string path = writeTempJson(R"({ "status_port": 9999 })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_EQ(9999u, cfg.status_port);
+}
+
+TEST(ConfigLoader, StatusPortDefaultWhenAbsent) {
+    const std::string path = writeTempJson(R"({})");
+    const SimConfig cfg  = loadConfig(path);
+    const SimConfig dflt{};
+    EXPECT_EQ(dflt.status_port, cfg.status_port);
+}
+
+TEST(ConfigLoader, LoadsMotorTimeConstant) {
+    const std::string path = writeTempJson(R"({
+        "quad_params": { "motor_time_constant_s": 0.025 }
+    })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_DOUBLE_EQ(0.025, cfg.quad_params.motor_time_constant_s);
+    // Other quad_params fields must retain their defaults
+    EXPECT_DOUBLE_EQ(simuav::physics::QuadrotorParams{}.mass, cfg.quad_params.mass);
+}
+
+TEST(ConfigLoader, LoadsImuGaussMarkovFields) {
+    const std::string path = writeTempJson(R"({
+        "imu_params": {
+            "accel_bias_instability":      0.0005,
+            "accel_bias_instability_tc_s": 600.0,
+            "gyro_bias_instability":       0.00002,
+            "gyro_bias_instability_tc_s":  400.0
+        }
+    })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_DOUBLE_EQ(0.0005,   cfg.imu_params.accel_bias_instability);
+    EXPECT_DOUBLE_EQ(600.0,    cfg.imu_params.accel_bias_instability_tc_s);
+    EXPECT_DOUBLE_EQ(0.00002,  cfg.imu_params.gyro_bias_instability);
+    EXPECT_DOUBLE_EQ(400.0,    cfg.imu_params.gyro_bias_instability_tc_s);
+    // Unrelated IMU field must not be zeroed by partial JSON
+    EXPECT_DOUBLE_EQ(simuav::sensors::IMUParams{}.accel_arw_std, cfg.imu_params.accel_arw_std);
+}
+
+TEST(ConfigLoader, LoadsImuVibrationFields) {
+    const std::string path = writeTempJson(R"({
+        "imu_params": {
+            "vibration_amplitude_mps2": 0.15,
+            "vibration_frequency_hz":   200.0
+        }
+    })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_DOUBLE_EQ(0.15,  cfg.imu_params.vibration_amplitude_mps2);
+    EXPECT_DOUBLE_EQ(200.0, cfg.imu_params.vibration_frequency_hz);
 }
 
 TEST(ConfigLoader, LoadsArduPilotSitlJsonFile) {
