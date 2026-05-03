@@ -2,6 +2,7 @@
   "dt": 0.004,
   "mavlink_host": "127.0.0.1",
   "mavlink_port": 9002,
+  "mavlink_local_port": 14561,
   "firmware_target": "ardupilot",
   "json_log_path": "telemetry.json",
   "ulog_path": "telemetry.ulg",

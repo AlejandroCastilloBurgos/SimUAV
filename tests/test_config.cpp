@@ -18,6 +18,7 @@ TEST(ConfigLoader, LoadsAllTopLevelFields) {
         "dt": 0.002,
         "mavlink_host": "192.168.1.1",
         "mavlink_port": 14550,
+        "mavlink_local_port": 15001,
         "json_log_path": "out.json",
         "ulog_path": "out.ulg"
     })");
@@ -27,6 +28,7 @@ TEST(ConfigLoader, LoadsAllTopLevelFields) {
     EXPECT_DOUBLE_EQ(cfg.dt, 0.002);
     EXPECT_EQ(cfg.mavlink_host, "192.168.1.1");
     EXPECT_EQ(cfg.mavlink_port, 14550);
+    EXPECT_EQ(15001u, cfg.mavlink_local_port);
     EXPECT_EQ(cfg.json_log_path, "out.json");
     EXPECT_EQ(cfg.ulog_path, "out.ulg");
 }
@@ -121,6 +123,19 @@ TEST(ConfigLoader, LoadsGpsNumSatsAndFixType) {
     const SimConfig cfg = loadConfig(path);
     EXPECT_EQ(cfg.gps_params.num_sats, 8u);
     EXPECT_EQ(cfg.gps_params.fix_type, 2u);
+}
+
+TEST(ConfigLoader, LoadsMavlinkLocalPort) {
+    const std::string path = writeTempJson(R"({ "mavlink_local_port": 15000 })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_EQ(15000u, cfg.mavlink_local_port);
+}
+
+TEST(ConfigLoader, MavlinkLocalPortDefaultWhenAbsent) {
+    const std::string path = writeTempJson(R"({})");
+    const SimConfig cfg  = loadConfig(path);
+    const SimConfig dflt{};
+    EXPECT_EQ(dflt.mavlink_local_port, cfg.mavlink_local_port);
 }
 
 TEST(ConfigLoader, LoadsStatusPort) {

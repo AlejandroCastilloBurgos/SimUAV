@@ -13,8 +13,9 @@ inline SimConfig loadConfig(const std::string& path) {
 
     cfg.dt             = j.value("dt",             cfg.dt);
     cfg.mavlink_host   = j.value("mavlink_host",   cfg.mavlink_host);
-    cfg.mavlink_port   = j.value("mavlink_port",   cfg.mavlink_port);
-    cfg.json_log_path  = j.value("json_log_path",  cfg.json_log_path);
+    cfg.mavlink_port        = j.value("mavlink_port",        cfg.mavlink_port);
+    cfg.mavlink_local_port  = j.value("mavlink_local_port",  cfg.mavlink_local_port);
+    cfg.json_log_path       = j.value("json_log_path",       cfg.json_log_path);
     cfg.ulog_path      = j.value("ulog_path",      cfg.ulog_path);
     cfg.status_port    = j.value("status_port",    cfg.status_port);
 
