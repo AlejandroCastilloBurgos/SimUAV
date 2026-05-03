@@ -21,20 +21,24 @@ static constexpr uint16_t kMsgIdAirData    = 3;
 
 // vehicle_local_position fields logged (subset)
 static constexpr char kFormatLocalPos[] =
-    "vehicle_local_position:float x;float y;float z;"
+    "vehicle_local_position:uint64_t timestamp;"
+    "float x;float y;float z;"
     "float vx;float vy;float vz;"
     "float ax;float ay;float az;"
     "float baro_alt;";
 
 static constexpr char kFormatImu[] =
-    "vehicle_imu:float ax;float ay;float az;float gx;float gy;float gz;";
+    "vehicle_imu:uint64_t timestamp;"
+    "float ax;float ay;float az;float gx;float gy;float gz;";
 
 static constexpr char kFormatGps[] =
-    "vehicle_gps_position:double lat;double lon;float alt;"
+    "vehicle_gps_position:uint64_t timestamp;"
+    "double lat;double lon;float alt;"
     "float vn;float ve;float vd;float eph;float epv;";
 
 static constexpr char kFormatAirData[] =
-    "vehicle_air_data:float pressure_pa;float altitude_m;float temperature_c;";
+    "vehicle_air_data:uint64_t timestamp;"
+    "float pressure_pa;float altitude_m;float temperature_c;";
 
 ULogLogger::ULogLogger(const std::string& path)
     : file_(path, std::ios::out | std::ios::binary | std::ios::trunc) {}
@@ -123,9 +127,12 @@ void ULogLogger::log(const physics::State&      state,
     // Each call writes one DATA record per subscribed topic.
     // msg_size = sizeof(payload) + 1 (for the msg_type byte).
 
+    const uint64_t timestamp_us = static_cast<uint64_t>(state.time * 1.0e6);
+
     {
         struct __attribute__((packed)) LocalPosPayload {
             uint16_t msg_id;
+            uint64_t timestamp;
             float x, y, z;
             float vx, vy, vz;
             float ax, ay, az;
@@ -133,6 +140,7 @@ void ULogLogger::log(const physics::State&      state,
         };
         LocalPosPayload pl{};
         pl.msg_id   = kMsgIdLocalPos;
+        pl.timestamp = timestamp_us;
         pl.x        = static_cast<float>(state.position.x());
         pl.y        = static_cast<float>(state.position.y());
         pl.z        = static_cast<float>(state.position.z());
@@ -151,11 +159,13 @@ void ULogLogger::log(const physics::State&      state,
     {
         struct __attribute__((packed)) ImuPayload {
             uint16_t msg_id;
+            uint64_t timestamp;
             float ax, ay, az;
             float gx, gy, gz;
         };
         ImuPayload pl{};
-        pl.msg_id = kMsgIdImu;
+        pl.msg_id    = kMsgIdImu;
+        pl.timestamp = timestamp_us;
         pl.ax     = static_cast<float>(imu.accel_body.x());
         pl.ay     = static_cast<float>(imu.accel_body.y());
         pl.az     = static_cast<float>(imu.accel_body.z());
@@ -170,13 +180,15 @@ void ULogLogger::log(const physics::State&      state,
     {
         struct __attribute__((packed)) GpsPayload {
             uint16_t msg_id;
+            uint64_t timestamp;
             double   lat, lon;
             float    alt;
             float    vn, ve, vd;
             float    eph, epv;
         };
         GpsPayload pl{};
-        pl.msg_id = kMsgIdGps;
+        pl.msg_id    = kMsgIdGps;
+        pl.timestamp = timestamp_us;
         pl.lat    = gps.latitude_deg;
         pl.lon    = gps.longitude_deg;
         pl.alt    = gps.altitude_m;
@@ -193,12 +205,14 @@ void ULogLogger::log(const physics::State&      state,
     {
         struct __attribute__((packed)) AirDataPayload {
             uint16_t msg_id;
+            uint64_t timestamp;
             float    pressure_pa;
             float    altitude_m;
             float    temperature_c;
         };
         AirDataPayload pl{};
-        pl.msg_id      = kMsgIdAirData;
+        pl.msg_id    = kMsgIdAirData;
+        pl.timestamp = timestamp_us;
         pl.pressure_pa = baro.pressure_pa;
         pl.altitude_m  = baro.altitude_m;
         pl.temperature_c = baro.temperature_c;
