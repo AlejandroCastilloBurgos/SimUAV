@@ -108,8 +108,12 @@ jobs:
       # ── Run end-to-end test ───────────────────────────────────────────────
 
       - name: Run E2E test
+        # Activate the venv so that cmake's find_package(Python3) resolves to
+        # the venv interpreter (which has kconfiglib) instead of /usr/bin/python3
+        # when PX4's kconfig.cmake runs on a fresh (cache-miss) build.
         run: |
-          .venv/bin/python3 scripts/e2e_px4_sitl.py \
+          source .venv/bin/activate
+          python3 scripts/e2e_px4_sitl.py \
             --px4-src px4-autopilot \
             --simuav ./build/simuav \
             --gps-timeout 30 \
