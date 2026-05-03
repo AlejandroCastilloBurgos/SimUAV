@@ -118,3 +118,13 @@ jobs:
             --simuav ./build/simuav \
             --gps-timeout 30 \
             --arm-timeout 15
+
+      - name: Upload telemetry on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemetry-px4-e2e
+          path: |
+            telemetry.ulg
+            telemetry.json
+          if-no-files-found: ignore
