@@ -144,6 +144,14 @@ void QuadrotorModel::integrate(const std::array<double, kNumMotors>& motor_speed
         state_.attitude.coeffs() = (state_.attitude.coeffs() + dt * d.dq).normalized();
     }
 
+    // Ground constraint (NED: z > 0 is below ground level).
+    if (params_.enable_ground_constraint && state_.position.z() > 0.0) {
+        state_.position.z() = 0.0;
+        state_.velocity.z() = std::min(state_.velocity.z(), 0.0);
+        if (last_accel_world_.z() > 0.0)
+            last_accel_world_.z() = 0.0;
+    }
+
     state_.time += dt;
 }
 

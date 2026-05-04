@@ -33,6 +33,7 @@ struct QuadrotorParams {
     double motor_spin_min{0.0};        // rad/s — motor speed at zero throttle (idle)
     bool   use_rk4{true};             // true = RK4 (default), false = semi-implicit Euler
     double motor_time_constant_s{0.04}; // s — first-order electromechanical lag (τ); 0 = instantaneous
+    bool   enable_ground_constraint{true}; // prevent vehicle from penetrating z=0 (NED ground plane)
 };
 
 // Full rigid-body state expressed in NED world frame.
