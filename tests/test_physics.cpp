@@ -40,15 +40,80 @@ TEST(QuadrotorModel, HoverKeepsAltitudeStable) {
 
 TEST(QuadrotorModel, ZeroThrotleDropsUnderGravity) {
     QuadrotorModel model;
+
+    // Start 10 m above ground (NED z = -10) so one step of free fall is
+    // well clear of the ground clamp.
+    State s = model.state();
+    s.position.z() = -10.0;
+    model.setState(s);
+
+    model.integrate({}, 0.004);
+
+    // Gravity should have imparted downward velocity (z > 0 in NED)
+    EXPECT_GT(model.state().velocity.z(), 0.0);
+}
+
+TEST(QuadrotorModel, GroundClampPreventsNegativeZ) {
+    QuadrotorParams p;
+    p.motor_time_constant_s = 0.0;
+    QuadrotorModel model(p);
     const std::array<double, kNumMotors> motors{};
 
-    // 0.5 s free fall
-    for (int i = 0; i < 125; ++i) {
+    // 2 s of free fall starting at ground level: vehicle must not go below z=0
+    for (int i = 0; i < 500; ++i)
         model.integrate(motors, 0.004);
-    }
 
-    // Should have fallen: z > 0 in NED (positive z = down)
-    EXPECT_GT(model.state().position.z(), 0.5);
+    EXPECT_DOUBLE_EQ(0.0, model.state().position.z());
+    EXPECT_LE(model.state().velocity.z(), 0.0);
+}
+
+TEST(QuadrotorModel, GroundClampZeroesDownwardVelocity) {
+    QuadrotorParams p;
+    p.motor_time_constant_s = 0.0;
+    QuadrotorModel model(p);
+
+    // Place vehicle 10 cm below ground with downward velocity
+    State s = model.state();
+    s.position.z() = 0.1;
+    s.velocity.z() = 3.0;
+    model.setState(s);
+
+    model.integrate({}, 0.001);
+
+    EXPECT_LE(model.state().position.z(), 0.0);
+    EXPECT_LE(model.state().velocity.z(), 0.0);
+}
+
+TEST(QuadrotorModel, GroundClampPreservesUpwardVelocity) {
+    QuadrotorParams p;
+    p.motor_time_constant_s = 0.0;
+    QuadrotorModel model(p);
+
+    // Vehicle at ground level with upward (negative-z NED) velocity
+    State s = model.state();
+    s.position.z() = 0.0;
+    s.velocity.z() = -2.0;
+    model.setState(s);
+
+    const double w = hoverSpeed();
+    model.integrate({w, w, w, w}, 0.004);
+
+    // Upward velocity must not have been zeroed by the clamp
+    EXPECT_LT(model.state().velocity.z(), 0.0);
+}
+
+TEST(QuadrotorModel, GroundConstraintDisabledFallsThrough) {
+    QuadrotorParams p;
+    p.motor_time_constant_s    = 0.0;
+    p.enable_ground_constraint = false;
+    QuadrotorModel model(p);
+    const std::array<double, kNumMotors> motors{};
+
+    // 2 s free fall with constraint disabled: vehicle must fall below z=0
+    for (int i = 0; i < 500; ++i)
+        model.integrate(motors, 0.004);
+
+    EXPECT_GT(model.state().position.z(), 0.0);
     EXPECT_GT(model.state().velocity.z(), 0.0);
 }
 
@@ -65,12 +130,14 @@ TEST(QuadrotorModel, AttitudeQuaternionRemainsNormalised) {
 }
 
 TEST(QuadrotorModel, RK4IsMoreAccurateThanEulerInFreeFall) {
-    // With aero_drag = 0, free fall is dv/dt = g (constant), z(t) = 0.5*g*t^2.
+    // With aero_drag = 0, free fall is dv/dt = g (constant), z(t) = z0 + 0.5*g*t^2.
     // RK4 integrates degree-2 polynomials exactly; semi-implicit Euler accumulates O(dt) error.
+    // Start 600 m above ground (NED z = -600) so the ground clamp never triggers.
     static constexpr double kG  = 9.80665;
     static constexpr double kT  = 10.0;
     static constexpr double kDt = 0.004;
     static constexpr int    kN  = static_cast<int>(kT / kDt);
+    static constexpr double kZ0 = -600.0; // 600 m above ground in NED
 
     const std::array<double, kNumMotors> motors{};
 
@@ -78,18 +145,24 @@ TEST(QuadrotorModel, RK4IsMoreAccurateThanEulerInFreeFall) {
     p_rk4.use_rk4   = true;
     p_rk4.aero_drag = 0.0;
     QuadrotorModel rk4_model(p_rk4);
+    State s_rk4 = rk4_model.state();
+    s_rk4.position.z() = kZ0;
+    rk4_model.setState(s_rk4);
 
     QuadrotorParams p_euler;
     p_euler.use_rk4   = false;
     p_euler.aero_drag = 0.0;
     QuadrotorModel euler_model(p_euler);
+    State s_euler = euler_model.state();
+    s_euler.position.z() = kZ0;
+    euler_model.setState(s_euler);
 
     for (int i = 0; i < kN; ++i) {
         rk4_model.integrate(motors, kDt);
         euler_model.integrate(motors, kDt);
     }
 
-    const double z_exact     = 0.5 * kG * kT * kT;
+    const double z_exact     = kZ0 + 0.5 * kG * kT * kT;
     const double rk4_error   = std::abs(rk4_model.state().position.z()  - z_exact);
     const double euler_error = std::abs(euler_model.state().position.z() - z_exact);
 

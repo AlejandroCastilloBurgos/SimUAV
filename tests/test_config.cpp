@@ -161,6 +161,15 @@ TEST(ConfigLoader, LoadsMotorTimeConstant) {
     EXPECT_DOUBLE_EQ(simuav::physics::QuadrotorParams{}.mass, cfg.quad_params.mass);
 }
 
+TEST(ConfigLoader, LoadsEnableGroundConstraint) {
+    const std::string path = writeTempJson(R"({
+        "quad_params": { "enable_ground_constraint": false }
+    })");
+    const SimConfig cfg = loadConfig(path);
+    EXPECT_FALSE(cfg.quad_params.enable_ground_constraint);
+    EXPECT_DOUBLE_EQ(simuav::physics::QuadrotorParams{}.mass, cfg.quad_params.mass);
+}
+
 TEST(ConfigLoader, LoadsImuGaussMarkovFields) {
     const std::string path = writeTempJson(R"({
         "imu_params": {

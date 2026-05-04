@@ -96,6 +96,9 @@ jobs:
       - name: Install PX4 Python requirements
         run: |
           .venv/bin/pip install --upgrade pip
+          # pip ≥25 rejects '>=X.Y.*' (wildcard suffix only valid with == / !=).
+          # PX4 v1.14 requirements.txt uses this form; strip the suffix in-place.
+          sed -i 's/>=\([0-9][0-9.]*\)\.\*/>=\1/g' px4-autopilot/Tools/setup/requirements.txt
           .venv/bin/pip install -r px4-autopilot/Tools/setup/requirements.txt
           # kconfiglib provides the 'menuconfig' module required by PX4's
           # cmake/kconfig.cmake at SITL startup. It is not in requirements.txt
