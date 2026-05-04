@@ -144,54 +144,64 @@ Each sensor class inherits `SensorBase` (a seeded `std::mt19937_64`). Sensors us
 | `include/simuav/StatusServer.h` | UDP status broadcast; `StatusSnapshot` struct |
 | `config/default.json` | All tuneable parameters with their default values |
 
-++
-++## Core Engineering Principles
-++
-++We build production-grade software.
-++
-++Priority order:
-++
-++1. Correctness
-++2. Maintainability
-++3. Simplicity
-++4. Security
-++5. Performance
-++6. Scalability
-++
-++Always avoid:
-++
-++- spaghetti code
-++- overengineering
-++- premature optimization
-++- hidden complexity
-++- fragile systems
-++- unclear ownership
-++
-++Prefer:
-++
-++- readable code
-++- modular design
-++- predictable behavior
-++- strong naming
-++- clean architecture
-++- testability
-++- small safe iterations
-++
-++Use principles pragmatically:
-++
-++- KISS
-++- SOLID
-++- DRY
-++- YAGNI
-++-
-++# Recommended Workflow
-++
-++Feature Work:
-++tech-lead → senior-dev → security-reviewer → qa-tester → documenter → devops-engineer
-++
-++Bug Fix:
-++debugger → tech-lead → senior-dev → qa-tester → documenter
-++
-++Technical Debt:
-++refactorer → qa-tester → documenter
-++
+
+## Core Engineering Principles
+
+We build production-grade software.
+
+**Priority order:**
+1. Correctness
+2. Maintainability
+3. Simplicity
+4. Security
+5. Performance
+6. Scalability
+
+**Always avoid:** spaghetti code, overengineering, premature optimization, hidden complexity, fragile systems, unclear ownership.
+
+**Prefer:** readable code, modular design, predictable behavior, strong naming, clean architecture, testability, small safe iterations.
+
+**Apply pragmatically:** KISS, SOLID, DRY, YAGNI.
+
+**Simulation-specific invariants:** determinism over raw speed, numerical stability over convenience, explicit behavior over implicit assumptions.
+
+## Multi-Agent Workflow
+
+Each agent has strictly isolated responsibilities. No agent performs another agent's role. Execution always follows the order below.
+
+### Agent order
+
+```
+Architect → Developer → Reviewer → Tester → Security → Performance → Integration → Refactorer → Documentation → DevOps
+```
+
+### Per-task shortcuts
+
+| Task type | Agents |
+|-----------|--------|
+| Feature | Architect → Developer → Reviewer → Tester → Security → Documentation → DevOps |
+| Bug fix | Developer → Reviewer → Tester → Documentation |
+| Technical debt | Reviewer → Refactorer → Tester → Documentation |
+| CI/infra | DevOps → Tester |
+
+### Agent responsibilities
+
+**Architect** — design before implementation. Outputs: class responsibilities, data flow, module boundaries, design rationale. Does NOT write full implementations.
+
+**Developer** — implement exactly what the Architect defined. C++17, RAII, `const`-correctness, `[[nodiscard]]` where applicable, clear ownership. No architectural decisions.
+
+**Reviewer** — critically evaluate the implementation. Detects bugs, edge cases, memory issues, design violations, unnecessary complexity. Does NOT rewrite — analyzes and points out.
+
+**Tester** — validate correctness via GoogleTest. Unit tests, edge cases, invalid inputs, regression tests. Simulation focus: numerical correctness, stability under extreme conditions, deterministic outputs.
+
+**Security** — identify undefined behavior, input validation gaps, memory safety issues, overflow/underflow. Outputs risk assessment and hardening recommendations.
+
+**Performance** — optimize real performance (not theoretical). Analyzes cache locality, data layout, hot paths, frame-time cost, hidden allocations. Simulation focus: deterministic timing, avoiding per-step heap allocation.
+
+**Integration** — verify modules work correctly together. Detects interface mismatches, incorrect coupling, broken cross-module assumptions.
+
+**Refactorer** — improve code quality without changing behavior: naming, structure, readability, duplication. No functional changes.
+
+**Documentation** — produce documentation that reflects actual code: headers, design rationale, config reference. Not theory.
+
+**DevOps** — CMake, CI/CD pipelines, reproducible builds, Linux parity. Ensures nightly e2e passes and caches are valid.
