@@ -170,7 +170,10 @@ def main() -> int:
         mav = mavutil.mavlink_connection(f"udpin:0.0.0.0:{GCS_PORT}")
 
         _info(f"Waiting for heartbeat (timeout {HEARTBEAT_TIMEOUT} s) ...")
-        mav.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT)
+        hb = mav.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT)
+        if hb is None:
+            _die(f"No MAVLink heartbeat from PX4 within {HEARTBEAT_TIMEOUT} s — "
+                 "SITL may not have started")
         _info(f"Heartbeat received (system {mav.target_system}, "
               f"component {mav.target_component})")
 

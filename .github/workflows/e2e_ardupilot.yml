@@ -97,7 +97,8 @@ jobs:
           if [ ! -f ardupilot/build/sitl/bin/arducopter ]; then
             cd ardupilot
             python3 -m venv /tmp/waf-venv
-            /tmp/waf-venv/bin/pip install -q future
+            # empy==3.3.4 is required by waf to process ArduPilot .h.in templates
+            /tmp/waf-venv/bin/pip install -q future 'empy==3.3.4'
             ./waf configure --board sitl
             ./waf copter -j4
           else
