@@ -38,6 +38,7 @@ add_library(simuav_lib STATIC
     src/sensors/GPS.cpp
     src/sensors/Barometer.cpp
     src/sensors/Magnetometer.cpp
+    src/sensors/Battery.cpp
     src/comms/MAVLinkBridge.cpp
     src/logging/JSONLogger.cpp
     src/logging/ULogLogger.cpp

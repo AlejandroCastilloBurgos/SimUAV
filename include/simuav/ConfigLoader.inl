@@ -116,6 +116,16 @@ inline SimConfig loadConfig(const std::string& path) {
         }
     }
 
+    if (j.contains("battery_params")) {
+        const auto& b  = j.at("battery_params");
+        auto& p        = cfg.battery_params;
+        p.cell_count      = b.value("cell_count",      p.cell_count);
+        p.capacity_mah    = b.value("capacity_mah",    p.capacity_mah);
+        p.resistance_ohm  = b.value("resistance_ohm",  p.resistance_ohm);
+        p.voltage_full_v  = b.value("voltage_full_v",  p.voltage_full_v);
+        p.voltage_empty_v = b.value("voltage_empty_v", p.voltage_empty_v);
+    }
+
     return cfg;
 }
 

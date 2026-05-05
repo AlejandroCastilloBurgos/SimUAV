@@ -143,6 +143,39 @@ void MAVLinkBridge::sendHilGps(const sensors::GPSSample& gps) {
     sendMessage(msg);
 }
 
+void MAVLinkBridge::sendBatteryStatus(const sensors::BatterySample& bat) {
+    mavlink_message_t msg{};
+
+    // Encode per-cell voltage in mV; fill remaining slots with UINT16_MAX (not present).
+    const uint16_t cell_mv =
+        static_cast<uint16_t>(bat.voltage_v / 1.0 * 1000.0); // total voltage in mV
+    std::array<uint16_t, 10> voltages{};
+    voltages.fill(UINT16_MAX);
+    voltages[0] = cell_mv;
+
+    std::array<uint16_t, 4> voltages_ext{};
+    voltages_ext.fill(0);
+
+    mavlink_msg_battery_status_pack(
+        params_.system_id, params_.component_id, &msg,
+        0,                                                        // id
+        MAV_BATTERY_FUNCTION_ALL,
+        MAV_BATTERY_TYPE_LIPO,
+        INT16_MAX,                                                // temperature: unknown
+        voltages.data(),
+        static_cast<int16_t>(bat.current_a * 100.0),             // centi-amps
+        -1,                                                       // current consumed (mAh): unknown
+        -1,                                                       // energy consumed: unknown
+        static_cast<int8_t>(bat.remaining * 100.0),              // percentage [0,100]
+        -1,                                                       // time_remaining: unknown
+        MAV_BATTERY_CHARGE_STATE_OK,
+        voltages_ext.data(),
+        0,                                                        // mode: unknown
+        0                                                         // fault_bitmask: none
+    );
+    sendMessage(msg);
+}
+
 bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
     if (sock_fd_ < 0) return false;
 

@@ -4,6 +4,7 @@
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
 #include "simuav/sensors/Magnetometer.h"
+#include "simuav/sensors/Battery.h"
 
 #include <array>
 #include <string>
@@ -51,6 +52,9 @@ public:
                        const sensors::MagSample& mag);
 
     void sendHilGps(const sensors::GPSSample& gps);
+
+    // Sends MAVLink BATTERY_STATUS (msg 147) with voltage, current, and SoC.
+    void sendBatteryStatus(const sensors::BatterySample& bat);
 
     // Drains the receive buffer. Returns true if new actuator data was read.
     // out_speeds: motor angular speeds in rad/s (indices match QuadrotorModel).
