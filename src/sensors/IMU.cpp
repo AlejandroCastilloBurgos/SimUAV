@@ -65,4 +65,10 @@ IMUSample IMU::sample(const physics::State& state,
     return out;
 }
 
+void IMU::injectBias(const Eigen::Vector3d& accel_offset,
+                     const Eigen::Vector3d& gyro_offset) {
+    accel_bias_ += accel_offset;
+    gyro_bias_  += gyro_offset;
+}
+
 }  // namespace simuav::sensors

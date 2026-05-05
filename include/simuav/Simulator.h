@@ -1,5 +1,6 @@
 #pragma once
 #include "simuav/FirmwareTarget.h"
+#include "simuav/ScenarioLoader.h"
 #include "simuav/StatusServer.h"
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/physics/WindModel.h"
@@ -13,8 +14,10 @@
 #include "simuav/logging/ULogLogger.h"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace simuav {
 
@@ -47,10 +50,11 @@ struct SimConfig {
 //
 // Loop order per step:
 //   1. receiveActuators()  – pull latest motor commands from firmware (non-blocking)
-//   2. integrate()         – advance physics by dt
-//   3. sampleSensors()     – apply noise models
-//   4. sendHilMessages()   – push sensor data to firmware
-//   5. log()               – write JSON + uLog records
+//   2. dispatchScenarioEvents() – fire any events whose time_s <= sim_time
+//   3. integrate()         – advance physics by dt
+//   4. sampleSensors()     – apply noise models
+//   5. sendHilMessages()   – push sensor data to firmware
+//   6. log()               – write JSON + uLog records
 class Simulator {
 public:
     explicit Simulator(SimConfig config);
@@ -59,11 +63,15 @@ public:
     void run();
     void stop();
 
+    // Load and arm a scenario file. Must be called before run().
+    void loadScenario(const std::string& path);
+
     const physics::State& state() const { return model_.state(); }
     const LoopStats&      stats() const { return stats_; }
 
 private:
     void step();
+    void dispatchScenarioEvents();
 
     SimConfig config_;
 
@@ -79,12 +87,16 @@ private:
     logging::ULogLogger     ulog_;
 
     std::array<double, physics::kNumMotors> motor_speeds_{};
+    std::array<bool, physics::kNumMotors>   locked_motors_{};
     std::atomic<bool> running_{false};
     LoopStats         stats_{};
     StatusServer      status_server_;
     uint64_t          hil_sensor_sent_{0};
     uint64_t          actuator_received_{0};
     float             last_baro_alt_m_{0.0f};
+
+    std::vector<ScenarioEvent> scenario_events_{};
+    std::size_t                scenario_idx_{0};
 };
 
 }  // namespace simuav

@@ -32,6 +32,11 @@ Simulator::Simulator(SimConfig config)
     , status_server_(config_.status_port)
 {}
 
+void Simulator::loadScenario(const std::string& path) {
+    scenario_events_ = simuav::loadScenario(path);
+    scenario_idx_    = 0;
+}
+
 void Simulator::run() {
     if (!mavlink_.open()) {
         std::fprintf(stderr, "Simulator: failed to open MAVLink bridge\n");
@@ -108,23 +113,59 @@ void Simulator::stop() {
     running_ = false;
 }
 
+void Simulator::dispatchScenarioEvents() {
+    const double sim_time = model_.state().time;
+    while (scenario_idx_ < scenario_events_.size() &&
+           scenario_events_[scenario_idx_].time_s <= sim_time) {
+        const ScenarioEvent& ev = scenario_events_[scenario_idx_];
+        if (ev.type == "wind_mean") {
+            const auto& ned = ev.params.at("ned");
+            wind_.setMeanNed({ned[0].get<double>(),
+                              ned[1].get<double>(),
+                              ned[2].get<double>()});
+        } else if (ev.type == "motor_lock") {
+            const int m = ev.params.at("motor").get<int>();
+            if (m >= 0 && m < static_cast<int>(physics::kNumMotors))
+                locked_motors_[static_cast<std::size_t>(m)] = true;
+        } else if (ev.type == "imu_bias_inject") {
+            const auto& a = ev.params.at("accel");
+            const auto& g = ev.params.at("gyro");
+            imu_.injectBias(
+                {a[0].get<double>(), a[1].get<double>(), a[2].get<double>()},
+                {g[0].get<double>(), g[1].get<double>(), g[2].get<double>()}
+            );
+        } else if (ev.type == "stop") {
+            stop();
+        }
+        ++scenario_idx_;
+    }
+}
+
 void Simulator::step() {
     // 1. Pull actuator commands (non-blocking; keep last if none arrives)
     const std::array<double, physics::kNumMotors> prev = motor_speeds_;
     mavlink_.receiveActuators(motor_speeds_);
     if (motor_speeds_ != prev) ++actuator_received_;
 
-    // 2. Wind disturbance
+    // 2. Dispatch any scenario events due at this simulation time
+    dispatchScenarioEvents();
+
+    // 3. Apply locked motors before physics integration
+    for (std::size_t i = 0; i < physics::kNumMotors; ++i) {
+        if (locked_motors_[i]) motor_speeds_[i] = 0.0;
+    }
+
+    // 4. Wind disturbance
     const Eigen::Vector3d wind_ned = wind_.sample();
 
-    // 3. Physics integration
+    // 5. Physics integration
     model_.integrate(motor_speeds_, config_.dt, wind_ned);
     const physics::State& s = model_.state();
 
-    // 4. World-frame linear acceleration produced by the last physics step.
+    // 6. World-frame linear acceleration produced by the last physics step.
     const Eigen::Vector3d accel_world = model_.lastAccelWorld();
 
-    // 5. Sample sensors
+    // 7. Sample sensors
     const sensors::IMUSample  imu_s  = imu_.sample(s, accel_world);
     const sensors::BaroSample baro_s = baro_.sample(s);
     const sensors::MagSample  mag_s  = mag_.sample(s);
@@ -134,7 +175,7 @@ void Simulator::step() {
 
     last_baro_alt_m_ = baro_s.altitude_m;
 
-    // 6. Sample battery and send HIL messages
+    // 8. Sample battery and send HIL messages
     const sensors::BatterySample bat_s =
         battery_.sample(motor_speeds_, config_.quad_params, config_.dt);
 
@@ -143,7 +184,7 @@ void Simulator::step() {
     ++hil_sensor_sent_;
     if (new_gps) mavlink_.sendHilGps(gps_s);
 
-    // 7. Log
+    // 9. Log
     json_log_.log(s, imu_s, baro_s, gps_s);
     ulog_.log(s, imu_s, baro_s, gps_s);
 }
