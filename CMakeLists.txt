@@ -69,3 +69,11 @@ if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# ------------- Benchmarks ---------------------------------------------------
+
+option(BUILD_BENCHMARKS "Build loop benchmark" OFF)
+if(BUILD_BENCHMARKS)
+    add_executable(simuav_bench tests/bench_loop.cpp)
+    target_link_libraries(simuav_bench PRIVATE simuav_lib)
+endif()
