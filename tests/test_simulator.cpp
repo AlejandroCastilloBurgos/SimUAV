@@ -64,3 +64,45 @@ TEST(RunDuration, ZeroDurationRunsForever) {
     simuav::Simulator sim(cfg);
     EXPECT_EQ(sim.stats().step_count, 0u);
 }
+
+// Helper that runs a sim with given seed and returns the final NED position.
+static Eigen::Vector3d runWithSeed(uint64_t seed) {
+    simuav::SimConfig cfg;
+    cfg.dt             = 0.004;
+    cfg.json_log_path  = "/dev/null";
+    cfg.ulog_path      = "/dev/null";
+    cfg.quad_params.motor_time_constant_s = 0.0;
+    cfg.quad_params.enable_ground_constraint = false; // allow free fall
+    cfg.run_duration_s     = 0.1;
+    cfg.status_port        = 0;
+    cfg.mavlink_local_port = 0;
+    cfg.rng_seed           = seed;
+
+    simuav::Simulator sim(cfg);
+    auto fut = std::async(std::launch::async, [&] { sim.run(); });
+    fut.wait_for(std::chrono::seconds(5));
+    return sim.state().position;
+}
+
+TEST(RngSeed, SameSeedProducesIdenticalState) {
+    const Eigen::Vector3d pos_a = runWithSeed(42);
+    const Eigen::Vector3d pos_b = runWithSeed(42);
+    EXPECT_DOUBLE_EQ(pos_a.x(), pos_b.x());
+    EXPECT_DOUBLE_EQ(pos_a.y(), pos_b.y());
+    EXPECT_DOUBLE_EQ(pos_a.z(), pos_b.z());
+}
+
+TEST(RngSeed, DifferentSeedsProduceDifferentState) {
+    const Eigen::Vector3d pos_a = runWithSeed(42);
+    const Eigen::Vector3d pos_b = runWithSeed(99);
+    // Wind differs between seeds; at least one position component must differ.
+    const bool differs = (pos_a - pos_b).norm() > 1e-10;
+    EXPECT_TRUE(differs);
+}
+
+TEST(RngSeed, DefaultZeroPreservesExistingBehavior) {
+    // rng_seed=0 uses legacy per-sensor offsets; just verify it constructs fine.
+    simuav::SimConfig cfg = minimalConfig();
+    EXPECT_EQ(cfg.rng_seed, 0u);
+    EXPECT_NO_THROW(simuav::Simulator sim(cfg));
+}

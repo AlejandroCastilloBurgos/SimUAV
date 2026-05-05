@@ -7,15 +7,21 @@
 
 namespace simuav {
 
+// When rng_seed is non-zero, derive each subsystem seed from it to make the
+// entire run reproducible with a single user-facing value.
+static uint64_t deriveSeed(uint64_t base, uint64_t offset) {
+    return base == 0 ? offset : base + offset;
+}
+
 Simulator::Simulator(SimConfig config)
     : config_(std::move(config))
     , model_(config_.quad_params)
-    , wind_(config_.wind_params, config_.dt)
-    , imu_(config_.imu_params)
-    , gps_(config_.gps_params)
-    , baro_(config_.baro_params)
-    , mag_(config_.mag_params)
-    , battery_(config_.battery_params)
+    , wind_(config_.wind_params, config_.dt, deriveSeed(config_.rng_seed, 0))
+    , imu_(config_.imu_params,    deriveSeed(config_.rng_seed, 1))
+    , gps_(config_.gps_params,    deriveSeed(config_.rng_seed, 2))
+    , baro_(config_.baro_params,  deriveSeed(config_.rng_seed, 3))
+    , mag_(config_.mag_params,    deriveSeed(config_.rng_seed, 4))
+    , battery_(config_.battery_params, deriveSeed(config_.rng_seed, 5))
     , mavlink_([this] {
         comms::BridgeParams bp;
         bp.remote_host     = config_.mavlink_host;
