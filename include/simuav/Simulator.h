@@ -36,6 +36,7 @@ struct SimConfig {
     std::string    json_log_path{"telemetry.json"};
     std::string    ulog_path{"telemetry.ulg"};
     uint16_t       status_port{14562};         // UDP port for status datagrams (0 = disabled)
+    double         run_duration_s{0.0};       // s, stop after this sim-time (0 = run forever)
 
     physics::QuadrotorParams quad_params{};
     physics::WindParams      wind_params{};
