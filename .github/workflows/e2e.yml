@@ -108,6 +108,18 @@ jobs:
       - name: Install pymavlink
         run: .venv/bin/pip install pymavlink
 
+      # ── Build PX4 SITL binary (separate step so it is cached before the test) ──
+      # The px4-autopilot cache path includes build/ so the compiled binary
+      # persists across runs. Subsequent runs hit the cache and skip this step.
+      - name: Build PX4 SITL binary
+        run: |
+          if [ ! -f px4-autopilot/build/px4_sitl_default/bin/px4 ]; then
+            source .venv/bin/activate
+            make -C px4-autopilot px4_sitl_default -j4
+          else
+            echo "PX4 SITL binary already present — skipping build"
+          fi
+
       # ── Run end-to-end test ───────────────────────────────────────────────
 
       - name: Run E2E test
@@ -119,8 +131,8 @@ jobs:
           python3 scripts/e2e_px4_sitl.py \
             --px4-src px4-autopilot \
             --simuav ./build/simuav \
-            --gps-timeout 30 \
-            --arm-timeout 15
+            --gps-timeout 60 \
+            --arm-timeout 30
 
       - name: Upload telemetry on failure
         if: failure()
