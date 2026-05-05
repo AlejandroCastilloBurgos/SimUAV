@@ -4,6 +4,7 @@
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
 #include "simuav/sensors/Magnetometer.h"
+#include "simuav/sensors/Battery.h"
 #include "simuav/physics/QuadrotorModel.h"
 
 using namespace simuav;
@@ -287,4 +288,52 @@ TEST(IMUVibration, ZAccelPowerDominatedByVibration) {
     const double rms_z = std::sqrt(sum_z2 / steps);
     EXPECT_GT(rms_z, 0.3) << "Z-accel RMS should reflect vibration injection";
     EXPECT_LT(rms_z, 2.0) << "Z-accel RMS should not exceed 2× vibration amplitude";
+}
+
+// ── Battery ──────────────────────────────────────────────────────────────────
+
+TEST(Battery, VoltageDecreasesUnderLoad) {
+    using namespace simuav::physics;
+    using namespace simuav::sensors;
+
+    QuadrotorParams qp;
+    qp.motor_time_constant_s = 0.0;
+
+    // Hover motor speed
+    const double w = std::sqrt((qp.mass * 9.80665) / (4.0 * qp.k_thrust));
+    const std::array<double, kNumMotors> motors{w, w, w, w};
+
+    Battery bat;
+    const BatterySample s0 = bat.sample(motors, qp, 0.004);
+
+    // 60 s of hover load
+    BatterySample sN{};
+    for (int i = 0; i < 15000; ++i)
+        sN = bat.sample(motors, qp, 0.004);
+
+    EXPECT_LT(sN.voltage_v, s0.voltage_v);
+    EXPECT_GE(sN.remaining, 0.0);
+    EXPECT_LE(sN.remaining, 1.0);
+}
+
+TEST(Battery, SoCClampedAtZero) {
+    using namespace simuav::physics;
+    using namespace simuav::sensors;
+
+    BatteryParams bp;
+    bp.capacity_mah = 0.1; // tiny battery — depletes in a few steps
+    Battery bat(bp);
+
+    QuadrotorParams qp;
+    qp.motor_time_constant_s = 0.0;
+    const double w = std::sqrt((qp.mass * 9.80665) / (4.0 * qp.k_thrust));
+    const std::array<double, kNumMotors> motors{w, w, w, w};
+
+    BatterySample s{};
+    for (int i = 0; i < 500; ++i)
+        s = bat.sample(motors, qp, 0.004);
+
+    EXPECT_DOUBLE_EQ(0.0, s.remaining);
+    EXPECT_GE(s.remaining, 0.0);
+    EXPECT_GE(s.voltage_v, 0.0);
 }

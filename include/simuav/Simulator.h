@@ -7,6 +7,7 @@
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
 #include "simuav/sensors/Magnetometer.h"
+#include "simuav/sensors/Battery.h"
 #include "simuav/comms/MAVLinkBridge.h"
 #include "simuav/logging/JSONLogger.h"
 #include "simuav/logging/ULogLogger.h"
@@ -39,6 +40,7 @@ struct SimConfig {
     sensors::GPSParams       gps_params{};
     sensors::BaroParams      baro_params{};
     sensors::MagParams       mag_params{};
+    sensors::BatteryParams   battery_params{};
 };
 
 // Top-level orchestrator. Owns all subsystems and drives the simulation loop.
@@ -71,6 +73,7 @@ private:
     sensors::GPS            gps_;
     sensors::Barometer      baro_;
     sensors::Magnetometer   mag_;
+    sensors::Battery        battery_;
     comms::MAVLinkBridge    mavlink_;
     logging::JSONLogger     json_log_;
     logging::ULogLogger     ulog_;

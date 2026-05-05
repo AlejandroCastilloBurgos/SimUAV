@@ -15,6 +15,7 @@ Simulator::Simulator(SimConfig config)
     , gps_(config_.gps_params)
     , baro_(config_.baro_params)
     , mag_(config_.mag_params)
+    , battery_(config_.battery_params)
     , mavlink_([this] {
         comms::BridgeParams bp;
         bp.remote_host     = config_.mavlink_host;
@@ -133,8 +134,12 @@ void Simulator::step() {
 
     last_baro_alt_m_ = baro_s.altitude_m;
 
-    // 6. Send HIL messages
+    // 6. Sample battery and send HIL messages
+    const sensors::BatterySample bat_s =
+        battery_.sample(motor_speeds_, config_.quad_params, config_.dt);
+
     mavlink_.sendHilSensor(imu_s, baro_s, mag_s);
+    mavlink_.sendBatteryStatus(bat_s);
     ++hil_sensor_sent_;
     if (new_gps) mavlink_.sendHilGps(gps_s);
 
