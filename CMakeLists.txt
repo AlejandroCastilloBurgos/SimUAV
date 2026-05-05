@@ -43,6 +43,7 @@ add_library(simuav_lib STATIC
     src/logging/JSONLogger.cpp
     src/logging/ULogLogger.cpp
     src/Simulator.cpp
+    src/ScenarioLoader.cpp
     src/LogReplayer.cpp
     src/StatusServer.cpp
 )

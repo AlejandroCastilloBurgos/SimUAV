@@ -36,6 +36,10 @@ public:
     IMUSample sample(const physics::State& state,
                      const Eigen::Vector3d& accel_world_ned);
 
+    // Adds a one-shot constant offset to the running bias vectors.
+    void injectBias(const Eigen::Vector3d& accel_offset,
+                    const Eigen::Vector3d& gyro_offset);
+
 private:
     IMUParams       params_;
     Eigen::Vector3d accel_bias_{Eigen::Vector3d::Zero()};

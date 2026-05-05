@@ -22,6 +22,7 @@ void onSignal(int) {
 int main(int argc, char* argv[]) {
     std::string config_path;
     std::string replay_path;
+    std::string scenario_path;
     int         status_port_override = -1; // -1 = not set on command line
 
     for (int i = 1; i < argc; ++i) {
@@ -38,6 +39,12 @@ int main(int argc, char* argv[]) {
                 return EXIT_FAILURE;
             }
             replay_path = argv[++i];
+        } else if (arg == "--scenario") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "--scenario requires a path argument\n");
+                return EXIT_FAILURE;
+            }
+            scenario_path = argv[++i];
         } else if (arg == "--status-port") {
             if (i + 1 >= argc) {
                 std::fprintf(stderr, "--status-port requires a port number\n");
@@ -100,6 +107,17 @@ int main(int argc, char* argv[]) {
 
     simuav::Simulator sim(cfg);
     g_sim = &sim;
+
+    if (!scenario_path.empty()) {
+        try {
+            sim.loadScenario(scenario_path);
+            std::printf("Scenario loaded from %s\n", scenario_path.c_str());
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "Error loading scenario '%s': %s\n",
+                         scenario_path.c_str(), e.what());
+            return EXIT_FAILURE;
+        }
+    }
 
     std::signal(SIGINT,  onSignal);
     std::signal(SIGTERM, onSignal);

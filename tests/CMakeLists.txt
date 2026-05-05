@@ -18,6 +18,7 @@ add_executable(simuav_tests
     test_simulator.cpp
     test_status.cpp
     test_frames.cpp
+    test_scenario.cpp
 )
 
 target_link_libraries(simuav_tests PRIVATE

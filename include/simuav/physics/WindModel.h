@@ -39,6 +39,8 @@ public:
     // Call once per physics step. Returns wind velocity in NED (m/s).
     Eigen::Vector3d sample();
 
+    void setMeanNed(const Eigen::Vector3d& v) { params_.mean_ned = v; }
+
 private:
     Eigen::Vector3d drydenSample();
 
