@@ -56,6 +56,9 @@ public:
     // Sends MAVLink BATTERY_STATUS (msg 147) with voltage, current, and SoC.
     void sendBatteryStatus(const sensors::BatterySample& bat);
 
+    // Sends MAVLink HEARTBEAT at 1 Hz so firmware does not drop the HIL session.
+    void sendHeartbeat();
+
     // Drains the receive buffer. Returns true if new actuator data was read.
     // out_speeds: motor angular speeds in rad/s (indices match QuadrotorModel).
     bool receiveActuators(std::array<double, 4>& out_speeds);

@@ -237,6 +237,17 @@ bool MAVLinkBridge::receiveActuators(std::array<double, 4>& out_speeds) {
     return got_actuators;
 }
 
+void MAVLinkBridge::sendHeartbeat() {
+    mavlink_message_t msg{};
+    mavlink_msg_heartbeat_pack(
+        params_.system_id, params_.component_id, &msg,
+        MAV_TYPE_GCS,        // we present as a GCS to keep the HIL session alive
+        MAV_AUTOPILOT_INVALID,
+        0, 0, 0              // base_mode, custom_mode, system_status
+    );
+    sendMessage(msg);
+}
+
 double MAVLinkBridge::escToSpeed(double throttle, double max_motor_speed,
                                   double motor_spin_min, double exponent) {
     const double t = std::max(0.0, std::min(1.0, throttle));

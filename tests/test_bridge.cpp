@@ -417,3 +417,21 @@ TEST_F(LoopbackFixture, ReceiveActuatorsDecodesMotorSpeeds) {
     EXPECT_NEAR(speeds[2], 0.75 * 838.0, 1e-6);
     EXPECT_NEAR(speeds[3], 1.00 * 838.0, 1e-6);
 }
+
+TEST_F(LoopbackFixture, SendHeartbeatDeliversMavlinkPacket) {
+    bridge_.sendHeartbeat();
+
+    std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buf{};
+    sockaddr_in src{};
+    ASSERT_GT(recvWithTimeout(peer_fd_, buf.data(), buf.size(), &src, 250), 0)
+        << "HEARTBEAT datagram not received within 250 ms";
+
+    mavlink_message_t msg{};
+    ASSERT_TRUE(parseMavlink(buf.data(), buf.size(), msg));
+    EXPECT_EQ(static_cast<uint32_t>(MAVLINK_MSG_ID_HEARTBEAT), msg.msgid);
+
+    mavlink_heartbeat_t hb{};
+    mavlink_msg_heartbeat_decode(&msg, &hb);
+    EXPECT_EQ(static_cast<uint8_t>(MAV_TYPE_GCS), hb.type);
+    EXPECT_EQ(static_cast<uint8_t>(MAV_AUTOPILOT_INVALID), hb.autopilot);
+}
