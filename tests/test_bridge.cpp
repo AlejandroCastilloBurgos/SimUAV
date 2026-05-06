@@ -325,6 +325,70 @@ TEST_F(LoopbackFixture, SendHilGpsDeliversMavlinkPacket) {
     EXPECT_EQ(static_cast<uint16_t>(250), g.epv); // 2.5*100
     EXPECT_EQ(12u,                        g.satellites_visible);
     EXPECT_EQ(3u,                         g.fix_type);
+    // COG for vn=1, ve=2: atan2(2,1)*18000/pi + 0 ≈ 6343 centidegrees
+    const uint16_t expected_cog = static_cast<uint16_t>(
+        std::fmod(std::atan2(2.0, 1.0) * (18000.0 / M_PI) + 36000.0, 36000.0));
+    EXPECT_EQ(expected_cog, g.cog);
+}
+
+TEST_F(LoopbackFixture, HilGpsCogDueNorth) {
+    simuav::sensors::GPSSample gps{};
+    gps.fix_type    = 3;
+    gps.velocity_n  = 1.0f;
+    gps.velocity_e  = 0.0f;
+    gps.num_sats    = 6;
+
+    bridge_.sendHilGps(gps);
+
+    std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buf{};
+    sockaddr_in src{};
+    ASSERT_GT(recvWithTimeout(peer_fd_, buf.data(), buf.size(), &src, 250), 0);
+
+    mavlink_message_t msg{};
+    ASSERT_TRUE(parseMavlink(buf.data(), buf.size(), msg));
+    mavlink_hil_gps_t g{};
+    mavlink_msg_hil_gps_decode(&msg, &g);
+    EXPECT_EQ(0u, g.cog);  // due North = 0 centidegrees
+}
+
+TEST_F(LoopbackFixture, HilGpsCogDueEast) {
+    simuav::sensors::GPSSample gps{};
+    gps.fix_type    = 3;
+    gps.velocity_n  = 0.0f;
+    gps.velocity_e  = 1.0f;
+    gps.num_sats    = 6;
+
+    bridge_.sendHilGps(gps);
+
+    std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buf{};
+    sockaddr_in src{};
+    ASSERT_GT(recvWithTimeout(peer_fd_, buf.data(), buf.size(), &src, 250), 0);
+
+    mavlink_message_t msg{};
+    ASSERT_TRUE(parseMavlink(buf.data(), buf.size(), msg));
+    mavlink_hil_gps_t g{};
+    mavlink_msg_hil_gps_decode(&msg, &g);
+    EXPECT_EQ(9000u, g.cog);  // due East = 9000 centidegrees
+}
+
+TEST_F(LoopbackFixture, HilGpsCogUnknownBelowThreshold) {
+    simuav::sensors::GPSSample gps{};
+    gps.fix_type    = 3;
+    gps.velocity_n  = 0.1f;   // ground speed ~0.14 m/s, below 0.2 m/s threshold
+    gps.velocity_e  = 0.1f;
+    gps.num_sats    = 6;
+
+    bridge_.sendHilGps(gps);
+
+    std::array<uint8_t, MAVLINK_MAX_PACKET_LEN> buf{};
+    sockaddr_in src{};
+    ASSERT_GT(recvWithTimeout(peer_fd_, buf.data(), buf.size(), &src, 250), 0);
+
+    mavlink_message_t msg{};
+    ASSERT_TRUE(parseMavlink(buf.data(), buf.size(), msg));
+    mavlink_hil_gps_t g{};
+    mavlink_msg_hil_gps_decode(&msg, &g);
+    EXPECT_EQ(UINT16_MAX, g.cog);
 }
 
 TEST_F(LoopbackFixture, ReceiveActuatorsDecodesMotorSpeeds) {

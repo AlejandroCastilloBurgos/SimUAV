@@ -124,6 +124,13 @@ void MAVLinkBridge::sendHilGps(const sensors::GPSSample& gps) {
     const float ground_speed = std::sqrt(gps.velocity_n * gps.velocity_n +
                                           gps.velocity_e * gps.velocity_e);
 
+    // COG in centidegrees [0, 36000). Below 0.2 m/s the heading is undefined.
+    const uint16_t cog_cdeg = (ground_speed >= 0.2f)
+        ? static_cast<uint16_t>(std::fmod(
+              std::atan2(gps.velocity_e, gps.velocity_n) * (18000.0 / M_PI) + 36000.0,
+              36000.0))
+        : UINT16_MAX;
+
     mavlink_msg_hil_gps_pack(
         params_.system_id, params_.component_id, &msg,
         time_us,
@@ -135,7 +142,7 @@ void MAVLinkBridge::sendHilGps(const sensors::GPSSample& gps) {
         static_cast<int16_t>(gps.velocity_n * 100),
         static_cast<int16_t>(gps.velocity_e * 100),
         static_cast<int16_t>(gps.velocity_d * 100),
-        UINT16_MAX,  // course over ground (unknown)
+        cog_cdeg,
         gps.num_sats,
         0,          // id: single GPS instance
         UINT16_MAX  // yaw: unknown
