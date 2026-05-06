@@ -96,7 +96,10 @@ void Simulator::run() {
             }
         }
 
-        // Publish status at ~1 Hz (every 250 steps)
+        // Heartbeat + status at ~1 Hz (every 250 steps at 250 Hz)
+        if (stats_.step_count % 250 == 0) {
+            mavlink_.sendHeartbeat();
+        }
         if (stats_.step_count % 250 == 0 && config_.status_port != 0) {
             StatusSnapshot snap;
             snap.sim_time          = model_.state().time;
