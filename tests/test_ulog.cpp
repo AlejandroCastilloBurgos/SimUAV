@@ -9,8 +9,20 @@
 #include "simuav/logging/ULogLogger.h"
 #include "simuav/physics/QuadrotorModel.h"
 #include "simuav/sensors/Barometer.h"
+#include "simuav/sensors/Battery.h"
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/IMU.h"
+
+static const std::array<double, simuav::physics::kNumMotors> kZeroMotors{};
+static const simuav::sensors::BatterySample kZeroBat{};
+
+static void writeTestEntry(simuav::logging::ULogLogger& logger,
+                           const simuav::physics::State& state) {
+    simuav::sensors::IMUSample  imu;
+    simuav::sensors::BaroSample baro{};
+    simuav::sensors::GPSSample  gps{};
+    logger.log(state, imu, baro, gps, kZeroMotors, kZeroBat);
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,11 +58,7 @@ TEST(ULogLogger, SubscriptionMessagesPresent) {
         ASSERT_TRUE(logger.isOpen());
 
         simuav::physics::State state;          // Eigen members initialise to zero/identity
-        simuav::sensors::IMUSample imu;        // Eigen members initialise to zero
-        simuav::sensors::BaroSample baro{};    // POD aggregate — zero by value-init
-        simuav::sensors::GPSSample  gps{};     // POD aggregate — zero by value-init
-
-        logger.log(state, imu, baro, gps);
+        writeTestEntry(logger, state);
     }  // destructor flushes and closes
 
     // 2. Open for binary reading.
@@ -69,15 +77,15 @@ TEST(ULogLogger, SubscriptionMessagesPresent) {
         skipBytes(f, static_cast<std::size_t>(msg_size) - 1);
     }
 
-    // 5. Expect exactly 4 FORMAT messages (msg_type == 0x46 'F').
-    for (int i = 0; i < 4; ++i) {
+    // 5. Expect exactly 6 FORMAT messages (msg_type == 0x46 'F').
+    for (int i = 0; i < 6; ++i) {
         uint16_t msg_size = readU16(f);
         uint8_t  msg_type = readU8(f);
         ASSERT_EQ(0x46, msg_type) << "FORMAT message " << i << " has wrong type";
         skipBytes(f, static_cast<std::size_t>(msg_size) - 1);
     }
 
-    // 6. Expect exactly 4 SUBSCRIPTION messages (msg_type == 0x53 'S').
+    // 6. Expect exactly 6 SUBSCRIPTION messages (msg_type == 0x53 'S').
     //    Layout after the 2-byte msg_size:
     //      [0]      msg_type  (1 byte, == 0x53)
     //      [1]      multi_id  (1 byte, == 0)
@@ -89,14 +97,16 @@ TEST(ULogLogger, SubscriptionMessagesPresent) {
         const char* name;
     };
 
-    const std::array<ExpectedSub, 4> expected{{
+    const std::array<ExpectedSub, 6> expected{{
         {0, "vehicle_local_position"},
         {1, "vehicle_imu"},
         {2, "vehicle_gps_position"},
         {3, "vehicle_air_data"},
+        {4, "vehicle_actuator_outputs"},
+        {5, "vehicle_battery_status"},
     }};
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 6; ++i) {
         uint16_t msg_size = readU16(f);
         uint8_t  msg_type = readU8(f);
         ASSERT_EQ(0x53, msg_type) << "SUBSCRIPTION message " << i << " has wrong type";
@@ -126,11 +136,7 @@ TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
         ASSERT_TRUE(logger.isOpen());
 
         simuav::physics::State      state;
-        simuav::sensors::IMUSample  imu;
-        simuav::sensors::BaroSample baro{};
-        simuav::sensors::GPSSample  gps{};
-
-        logger.log(state, imu, baro, gps);
+        writeTestEntry(logger, state);
     }
 
     std::ifstream f(path, std::ios::binary);
@@ -145,20 +151,20 @@ TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
         skipBytes(f, sz);
     }
 
-    // Skip 4 FORMAT messages.
-    for (int i = 0; i < 4; ++i) {
+    // Skip 6 FORMAT messages.
+    for (int i = 0; i < 6; ++i) {
         uint16_t sz = readU16(f);
         skipBytes(f, sz);
     }
 
-    // Skip 4 SUBSCRIPTION messages.
-    for (int i = 0; i < 4; ++i) {
+    // Skip 6 SUBSCRIPTION messages.
+    for (int i = 0; i < 6; ++i) {
         uint16_t sz = readU16(f);
         skipBytes(f, sz);
     }
 
     // Collect msg_ids from all DATA messages (msg_type == 0x44 'D').
-    std::array<bool, 4> seen{};
+    std::array<bool, 6> seen{};
     while (f) {
         uint16_t msg_size = readU16(f);
         if (!f) break;
@@ -167,8 +173,7 @@ TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
 
         if (msg_type == 0x44) {
             uint16_t msg_id = readU16(f);
-            if (msg_id < 4) seen[msg_id] = true;
-            // Skip remaining payload bytes (msg_size - 1 type - 2 msg_id).
+            if (msg_id < 6) seen[msg_id] = true;
             skipBytes(f, static_cast<std::size_t>(msg_size) - 1 - 2);
         } else {
             skipBytes(f, static_cast<std::size_t>(msg_size) - 1);
@@ -179,6 +184,8 @@ TEST(ULogLogger, AllFourTopicsHaveDataMessages) {
     EXPECT_TRUE(seen[1]) << "DATA msg_id 1 (vehicle_imu) missing";
     EXPECT_TRUE(seen[2]) << "DATA msg_id 2 (vehicle_gps_position) missing";
     EXPECT_TRUE(seen[3]) << "DATA msg_id 3 (vehicle_air_data) missing";
+    EXPECT_TRUE(seen[4]) << "DATA msg_id 4 (vehicle_actuator_outputs) missing";
+    EXPECT_TRUE(seen[5]) << "DATA msg_id 5 (vehicle_battery_status) missing";
 }
 
 TEST(ULogLogger, FormatStringsContainTimestampFirstField) {
@@ -188,10 +195,7 @@ TEST(ULogLogger, FormatStringsContainTimestampFirstField) {
     {
         simuav::logging::ULogLogger logger(path);
         simuav::physics::State      state;
-        simuav::sensors::IMUSample  imu;
-        simuav::sensors::BaroSample baro{};
-        simuav::sensors::GPSSample  gps{};
-        logger.log(state, imu, baro, gps);
+        writeTestEntry(logger, state);
     }
 
     std::ifstream f(path, std::ios::binary);
@@ -202,7 +206,7 @@ TEST(ULogLogger, FormatStringsContainTimestampFirstField) {
     { uint16_t sz = readU16(f); skipBytes(f, sz); }
 
     int fmt_with_timestamp = 0;
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 6; ++i) {
         uint16_t msg_size = readU16(f);
         uint8_t  msg_type = readU8(f);
         ASSERT_EQ(0x46, msg_type);
@@ -218,7 +222,7 @@ TEST(ULogLogger, FormatStringsContainTimestampFirstField) {
             << "FORMAT " << i << " first field is not 'uint64_t timestamp': " << body;
         ++fmt_with_timestamp;
     }
-    EXPECT_EQ(4, fmt_with_timestamp);
+    EXPECT_EQ(6, fmt_with_timestamp);
 }
 
 TEST(ULogLogger, DataTimestampMatchesStateTime) {
@@ -229,22 +233,19 @@ TEST(ULogLogger, DataTimestampMatchesStateTime) {
     constexpr double kTime2 = 3.25;
     {
         simuav::logging::ULogLogger logger(path);
-        simuav::physics::State      state;
-        simuav::sensors::IMUSample  imu;
-        simuav::sensors::BaroSample baro{};
-        simuav::sensors::GPSSample  gps{};
+        simuav::physics::State state;
         state.time = kTime1;
-        logger.log(state, imu, baro, gps);
+        writeTestEntry(logger, state);
         state.time = kTime2;
-        logger.log(state, imu, baro, gps);
+        writeTestEntry(logger, state);
     }
 
     std::ifstream f(path, std::ios::binary);
     ASSERT_TRUE(f.is_open());
     skipBytes(f, 16);
     { uint16_t sz = readU16(f); skipBytes(f, sz); }       // FLAG_BITS
-    for (int i = 0; i < 4; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // FORMATs
-    for (int i = 0; i < 4; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // SUBs
+    for (int i = 0; i < 6; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // FORMATs
+    for (int i = 0; i < 6; ++i) { uint16_t sz = readU16(f); skipBytes(f, sz); } // SUBs
 
     // First DATA message (local_position, msg_id 0) written for kTime1.
     {

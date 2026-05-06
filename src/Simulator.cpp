@@ -207,8 +207,8 @@ void Simulator::step() {
     if (new_gps) mavlink_.sendHilGps(gps_s);
 
     // 9. Log
-    json_log_.log(s, imu_s, baro_s, gps_s);
-    ulog_.log(s, imu_s, baro_s, gps_s);
+    json_log_.log(s, imu_s, baro_s, gps_s, model_.motorSpeedsActual(), bat_s, wind_ned);
+    ulog_.log(s, imu_s, baro_s, gps_s, model_.motorSpeedsActual(), bat_s);
 }
 
 }  // namespace simuav

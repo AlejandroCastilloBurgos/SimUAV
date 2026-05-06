@@ -3,7 +3,9 @@
 #include "simuav/sensors/IMU.h"
 #include "simuav/sensors/GPS.h"
 #include "simuav/sensors/Barometer.h"
+#include "simuav/sensors/Battery.h"
 
+#include <array>
 #include <fstream>
 #include <string>
 #include <cstdint>
@@ -13,12 +15,13 @@ namespace simuav::logging {
 // Writes telemetry in PX4 uLog binary format.
 // Spec: https://docs.px4.io/main/en/dev_log/ulog_file_format.html
 //
-// Layout written:
-//   File header (16 bytes magic + timestamp)
-//   FLAG_BITS message
-//   FORMAT messages  (vehicle_local_position, vehicle_imu, vehicle_gps_position, vehicle_air_data)
-//   SUBSCRIPTION messages (one per FORMAT, msg_id 0-3)
-//   DATA messages   (one per log() call, msg_id 0 = vehicle_local_position)
+// Topics (msg_id order):
+//   0  vehicle_local_position
+//   1  vehicle_imu
+//   2  vehicle_gps_position
+//   3  vehicle_air_data
+//   4  vehicle_actuator_outputs   (motor speeds rad/s)
+//   5  vehicle_battery_status     (voltage, current, remaining)
 class ULogLogger {
 public:
     explicit ULogLogger(const std::string& path);
@@ -26,10 +29,12 @@ public:
 
     bool isOpen() const { return file_.is_open(); }
 
-    void log(const physics::State&      state,
-             const sensors::IMUSample&  imu,
-             const sensors::BaroSample& baro,
-             const sensors::GPSSample&  gps);
+    void log(const physics::State&                         state,
+             const sensors::IMUSample&                     imu,
+             const sensors::BaroSample&                    baro,
+             const sensors::GPSSample&                     gps,
+             const std::array<double, physics::kNumMotors>& motor_rad_s,
+             const sensors::BatterySample&                 bat);
 
 private:
     void writeFileHeader();
