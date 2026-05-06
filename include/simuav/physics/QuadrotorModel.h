@@ -25,7 +25,8 @@ struct QuadrotorParams {
     double arm_length{0.225};       // m, motor-to-CoM distance
     double k_thrust{9.18e-6};       // N / (rad/s)²
     double k_drag{1.35e-7};         // N·m / (rad/s)²  (reactive yaw torque)
-    double aero_drag{0.25};         // N·s/m, translational drag coefficient
+    double aero_drag_xy{0.25};      // N·s/m, body-frame horizontal drag (X/Y axes)
+    double aero_drag_z{0.8};        // N·s/m, body-frame vertical drag (Z axis)
     // Diagonal inertia tensor [Ixx, Iyy, Izz] (kg·m²)
     Eigen::Vector3d inertia_diag{0.029, 0.029, 0.055};
     double max_motor_speed{838.0};  // rad/s (~8 000 RPM)
