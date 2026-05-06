@@ -102,6 +102,11 @@ void Simulator::run() {
             status_server_.publish(snap);
         }
 
+        if (config_.run_duration_s > 0.0 && model_.state().time >= config_.run_duration_s) {
+            running_ = false;
+            break;
+        }
+
         std::this_thread::sleep_until(next_wake);
         next_wake += step_dur;
     }

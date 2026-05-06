@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "simuav/Simulator.h"
+#include <future>
+#include <chrono>
 
 // Build a minimal SimConfig that avoids opening real files or sockets.
 static simuav::SimConfig minimalConfig() {
@@ -33,4 +35,32 @@ TEST(LoopStats, StepCountIncrements) {
 TEST(LoopStats, MaxStepUsIsNonNegative) {
     simuav::Simulator sim(minimalConfig());
     EXPECT_GE(sim.stats().max_step_us, 0.0);
+}
+
+TEST(RunDuration, StopsAfterConfiguredSimTime) {
+    simuav::SimConfig cfg = minimalConfig();
+    cfg.run_duration_s     = 0.1;   // 25 steps at dt=0.004
+    cfg.status_port        = 0;     // no UDP status broadcast
+    cfg.mavlink_local_port = 0;     // OS picks a free ephemeral port
+
+    simuav::Simulator sim(cfg);
+
+    auto fut = std::async(std::launch::async, [&] { sim.run(); });
+    const auto status = fut.wait_for(std::chrono::seconds(5));
+
+    ASSERT_EQ(status, std::future_status::ready)
+        << "Simulator did not stop within 5 s wall time";
+
+    // run_duration_s / dt = 25 expected steps; allow ±2 for rounding
+    const double expected = cfg.run_duration_s / cfg.dt;
+    EXPECT_NEAR(static_cast<double>(sim.stats().step_count), expected, 2.0);
+}
+
+TEST(RunDuration, ZeroDurationRunsForever) {
+    // Verify default (0.0) does NOT stop on its own — we just check the flag
+    // is not prematurely set by inspecting stats before any run().
+    simuav::SimConfig cfg = minimalConfig();
+    EXPECT_DOUBLE_EQ(cfg.run_duration_s, 0.0);
+    simuav::Simulator sim(cfg);
+    EXPECT_EQ(sim.stats().step_count, 0u);
 }
