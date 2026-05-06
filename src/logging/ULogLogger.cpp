@@ -13,11 +13,13 @@ static constexpr uint8_t kMsgFlagBits = 0x42; // 'B'
 static constexpr uint8_t kMsgFormat   = 0x46; // 'F'
 static constexpr uint8_t kMsgData     = 0x44; // 'D'
 
-static constexpr uint8_t  kMsgSubscription = 0x53;
-static constexpr uint16_t kMsgIdLocalPos   = 0;
-static constexpr uint16_t kMsgIdImu        = 1;
-static constexpr uint16_t kMsgIdGps        = 2;
-static constexpr uint16_t kMsgIdAirData    = 3;
+static constexpr uint8_t  kMsgSubscription    = 0x53;
+static constexpr uint16_t kMsgIdLocalPos      = 0;
+static constexpr uint16_t kMsgIdImu           = 1;
+static constexpr uint16_t kMsgIdGps           = 2;
+static constexpr uint16_t kMsgIdAirData       = 3;
+static constexpr uint16_t kMsgIdActuatorOut   = 4;
+static constexpr uint16_t kMsgIdBatteryStatus = 5;
 
 // vehicle_local_position fields logged (subset)
 static constexpr char kFormatLocalPos[] =
@@ -39,6 +41,14 @@ static constexpr char kFormatGps[] =
 static constexpr char kFormatAirData[] =
     "vehicle_air_data:uint64_t timestamp;"
     "float pressure_pa;float altitude_m;float temperature_c;";
+
+static constexpr char kFormatActuatorOut[] =
+    "vehicle_actuator_outputs:uint64_t timestamp;"
+    "float output[4];";
+
+static constexpr char kFormatBatteryStatus[] =
+    "vehicle_battery_status:uint64_t timestamp;"
+    "float voltage_v;float current_a;float remaining;";
 
 ULogLogger::ULogLogger(const std::string& path)
     : file_(path, std::ios::out | std::ios::binary | std::ios::trunc) {}
@@ -103,10 +113,12 @@ void ULogLogger::writeSubscriptionMessage(const char* topic_name, uint16_t msg_i
     writeBytes(topic_name, name_len);
 }
 
-void ULogLogger::log(const physics::State&      state,
-                      const sensors::IMUSample&  imu,
-                      const sensors::BaroSample& baro,
-                      const sensors::GPSSample&  gps)
+void ULogLogger::log(const physics::State&                         state,
+                      const sensors::IMUSample&                     imu,
+                      const sensors::BaroSample&                    baro,
+                      const sensors::GPSSample&                     gps,
+                      const std::array<double, physics::kNumMotors>& motor_rad_s,
+                      const sensors::BatterySample&                 bat)
 {
     if (!file_.is_open()) return;
 
@@ -117,10 +129,14 @@ void ULogLogger::log(const physics::State&      state,
         writeFormatMessage(kFormatImu);
         writeFormatMessage(kFormatGps);
         writeFormatMessage(kFormatAirData);
-        writeSubscriptionMessage("vehicle_local_position", kMsgIdLocalPos);
-        writeSubscriptionMessage("vehicle_imu",            kMsgIdImu);
-        writeSubscriptionMessage("vehicle_gps_position",   kMsgIdGps);
-        writeSubscriptionMessage("vehicle_air_data",       kMsgIdAirData);
+        writeFormatMessage(kFormatActuatorOut);
+        writeFormatMessage(kFormatBatteryStatus);
+        writeSubscriptionMessage("vehicle_local_position",    kMsgIdLocalPos);
+        writeSubscriptionMessage("vehicle_imu",               kMsgIdImu);
+        writeSubscriptionMessage("vehicle_gps_position",      kMsgIdGps);
+        writeSubscriptionMessage("vehicle_air_data",          kMsgIdAirData);
+        writeSubscriptionMessage("vehicle_actuator_outputs",  kMsgIdActuatorOut);
+        writeSubscriptionMessage("vehicle_battery_status",    kMsgIdBatteryStatus);
         header_written_ = true;
     }
 
@@ -216,6 +232,41 @@ void ULogLogger::log(const physics::State&      state,
         pl.pressure_pa = baro.pressure_pa;
         pl.altitude_m  = baro.altitude_m;
         pl.temperature_c = baro.temperature_c;
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
+
+    {
+        struct __attribute__((packed)) ActuatorOutPayload {
+            uint16_t msg_id;
+            uint64_t timestamp;
+            float    output[4];
+        };
+        ActuatorOutPayload pl{};
+        pl.msg_id    = kMsgIdActuatorOut;
+        pl.timestamp = timestamp_us;
+        for (int i = 0; i < physics::kNumMotors; ++i)
+            pl.output[i] = static_cast<float>(motor_rad_s[static_cast<std::size_t>(i)]);
+        writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
+        writeByte(kMsgData);
+        writeBytes(&pl, sizeof(pl));
+    }
+
+    {
+        struct __attribute__((packed)) BatteryPayload {
+            uint16_t msg_id;
+            uint64_t timestamp;
+            float    voltage_v;
+            float    current_a;
+            float    remaining;
+        };
+        BatteryPayload pl{};
+        pl.msg_id    = kMsgIdBatteryStatus;
+        pl.timestamp = timestamp_us;
+        pl.voltage_v = bat.voltage_v;
+        pl.current_a = bat.current_a;
+        pl.remaining = static_cast<float>(bat.remaining);
         writeU16(static_cast<uint16_t>(sizeof(pl) + 1));
         writeByte(kMsgData);
         writeBytes(&pl, sizeof(pl));
