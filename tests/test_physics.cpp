@@ -143,7 +143,7 @@ TEST(QuadrotorModel, RK4IsMoreAccurateThanEulerInFreeFall) {
 
     QuadrotorParams p_rk4;
     p_rk4.use_rk4   = true;
-    p_rk4.aero_drag = 0.0;
+    p_rk4.aero_drag_xy = 0.0; p_rk4.aero_drag_z = 0.0;
     QuadrotorModel rk4_model(p_rk4);
     State s_rk4 = rk4_model.state();
     s_rk4.position.z() = kZ0;
@@ -151,7 +151,7 @@ TEST(QuadrotorModel, RK4IsMoreAccurateThanEulerInFreeFall) {
 
     QuadrotorParams p_euler;
     p_euler.use_rk4   = false;
-    p_euler.aero_drag = 0.0;
+    p_euler.aero_drag_xy = 0.0; p_euler.aero_drag_z = 0.0;
     QuadrotorModel euler_model(p_euler);
     State s_euler = euler_model.state();
     s_euler.position.z() = kZ0;
@@ -306,4 +306,47 @@ TEST(WindModel, WhiteNoiseFallbackWorks) {
     const double empirical_var = sum2 / kN;
     EXPECT_NEAR(empirical_var, p.turbulence_std * p.turbulence_std,
                 0.1 * p.turbulence_std * p.turbulence_std);
+}
+
+TEST(QuadrotorModel, DragIsBodyFrameForHorizontalWind) {
+    // At level attitude, a pure horizontal (North) wind must produce zero
+    // vertical drag — validates that the body-frame rotation is correct.
+    QuadrotorParams p;
+    p.aero_drag_xy = 0.25;
+    p.aero_drag_z  = 0.8;
+    p.enable_ground_constraint = false;
+
+    QuadrotorModel model(p);
+    const std::array<double, kNumMotors> motors{};  // zero thrust
+    const Eigen::Vector3d wind_ned(5.0, 0.0, 0.0);  // pure North wind
+
+    // Single step: at level attitude, body frame = NED frame.
+    // Body-frame drag for (vx-wind, vy, vz) = (-5, 0, 0) gives drag_body.z() = 0.
+    // Rotating back to NED keeps drag.z() = 0.
+    model.integrate(motors, 0.004, wind_ned);
+    const Eigen::Vector3d accel = model.lastAccelWorld();
+
+    // gravity_ned.z() / mass = 9.80665; drag should add nothing to z.
+    EXPECT_NEAR(accel.z(), 9.80665, 1e-8);
+}
+
+TEST(QuadrotorModel, BodyDragBackwardCompatWithLegacyScalar) {
+    // Verify that aero_drag_xy == aero_drag_z gives the same linear accel
+    // as the old single-scalar code at level attitude (both are NED-equivalent).
+    QuadrotorParams p;
+    p.aero_drag_xy = 0.25;
+    p.aero_drag_z  = 0.25;  // same value → equivalent to old scalar
+    p.enable_ground_constraint = false;
+
+    QuadrotorModel model(p);
+    const std::array<double, kNumMotors> motors{};
+    const Eigen::Vector3d wind_ned(3.0, 2.0, 1.0);
+
+    model.integrate(motors, 0.004, wind_ned);
+    const Eigen::Vector3d accel = model.lastAccelWorld();
+
+    // At level attitude, body frame == NED frame, so per-axis drag = scalar drag.
+    // x-accel contribution: -aero_drag_xy * (0 - 3) / mass = 0.5
+    const double expected_ax = 0.25 * 3.0 / 1.5;
+    EXPECT_NEAR(accel.x(), expected_ax, 1e-8);
 }

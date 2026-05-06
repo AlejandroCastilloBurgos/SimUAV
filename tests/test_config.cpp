@@ -53,6 +53,9 @@ TEST(ConfigLoader, LoadsQuadParams) {
     EXPECT_DOUBLE_EQ(cfg.quad_params.max_motor_speed, 900.0);
     EXPECT_NEAR(cfg.quad_params.inertia_diag.x(), 0.05, 1e-10);
     EXPECT_NEAR(cfg.quad_params.inertia_diag.z(), 0.09, 1e-10);
+    // Legacy "aero_drag" key must populate both xy and z axes.
+    EXPECT_DOUBLE_EQ(cfg.quad_params.aero_drag_xy, 0.4);
+    EXPECT_DOUBLE_EQ(cfg.quad_params.aero_drag_z,  0.4);
 }
 
 TEST(ConfigLoader, MissingKeysRetainDefaults) {

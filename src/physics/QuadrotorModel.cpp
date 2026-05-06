@@ -40,9 +40,18 @@ QuadrotorModel::computeAccelerations(const State& s,
     const Eigen::Matrix3d R = s.attitude.toRotationMatrix(); // body → NED
     const Eigen::Vector3d thrust_ned = R * thrust_body;
 
-    // --- Translational drag against relative airspeed -------------------
-    const Eigen::Vector3d rel_vel = s.velocity - wind_ned;
-    const Eigen::Vector3d drag_ned = -params_.aero_drag * rel_vel;
+    // --- Translational drag in body frame --------------------------------
+    // Transform relative airspeed to body frame, apply per-axis coefficients,
+    // then rotate back to NED. Separating xy (blade-flapping) from z (form drag)
+    // gives more physical force profiles for firmware altitude-hold tests.
+    const Eigen::Vector3d rel_vel_ned  = s.velocity - wind_ned;
+    const Eigen::Vector3d rel_vel_body = R.transpose() * rel_vel_ned;
+    const Eigen::Vector3d drag_body(
+        -params_.aero_drag_xy * rel_vel_body.x(),
+        -params_.aero_drag_xy * rel_vel_body.y(),
+        -params_.aero_drag_z  * rel_vel_body.z()
+    );
+    const Eigen::Vector3d drag_ned = R * drag_body;
 
     // --- Gravity (NED: positive Z = down) --------------------------------
     const Eigen::Vector3d gravity_ned(0.0, 0.0, params_.mass * kGravity);

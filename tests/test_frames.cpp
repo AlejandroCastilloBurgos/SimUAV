@@ -23,7 +23,7 @@ static double hoverSpeed() {
 TEST(FrameConventions, ThrustDirectionIsBodyNegativeZ) {
     QuadrotorParams p;
     p.motor_time_constant_s = 0.0;
-    p.aero_drag             = 0.0;
+    p.aero_drag_xy = 0.0; p.aero_drag_z = 0.0;
     QuadrotorModel model(p);
 
     // 10 % above hover so net z-accel is strictly negative if thrust is upward.
@@ -40,7 +40,7 @@ TEST(FrameConventions, ThrustDirectionIsBodyNegativeZ) {
 TEST(FrameConventions, GravityIsNEDPositiveZ) {
     QuadrotorParams p;
     p.motor_time_constant_s    = 0.0;
-    p.aero_drag                = 0.0;
+    p.aero_drag_xy = 0.0; p.aero_drag_z = 0.0;
     p.enable_ground_constraint = false;
     QuadrotorModel model(p);
 

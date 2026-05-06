@@ -34,7 +34,14 @@ inline SimConfig loadConfig(const std::string& path) {
         p.arm_length       = q.value("arm_length",      p.arm_length);
         p.k_thrust         = q.value("k_thrust",        p.k_thrust);
         p.k_drag           = q.value("k_drag",          p.k_drag);
-        p.aero_drag        = q.value("aero_drag",       p.aero_drag);
+        // aero_drag (legacy scalar) populates both axes for backward-compat.
+        if (q.contains("aero_drag")) {
+            const double v = q.at("aero_drag").get<double>();
+            p.aero_drag_xy = v;
+            p.aero_drag_z  = v;
+        }
+        p.aero_drag_xy     = q.value("aero_drag_xy",   p.aero_drag_xy);
+        p.aero_drag_z      = q.value("aero_drag_z",    p.aero_drag_z);
         p.max_motor_speed  = q.value("max_motor_speed", p.max_motor_speed);
         p.esc_exponent     = q.value("esc_exponent",    p.esc_exponent);
         p.motor_spin_min          = q.value("motor_spin_min",          p.motor_spin_min);
