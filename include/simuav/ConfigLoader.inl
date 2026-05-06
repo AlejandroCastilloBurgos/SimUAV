@@ -19,6 +19,7 @@ inline SimConfig loadConfig(const std::string& path) {
     cfg.ulog_path      = j.value("ulog_path",      cfg.ulog_path);
     cfg.status_port      = j.value("status_port",      cfg.status_port);
     cfg.run_duration_s   = j.value("run_duration_s",   cfg.run_duration_s);
+    cfg.rng_seed         = j.value("rng_seed",         cfg.rng_seed);
 
     {
         const std::string ft = j.value("firmware_target", std::string("px4"));

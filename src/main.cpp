@@ -23,7 +23,8 @@ int main(int argc, char* argv[]) {
     std::string config_path;
     std::string replay_path;
     std::string scenario_path;
-    int         status_port_override = -1; // -1 = not set on command line
+    int         status_port_override = -1;  // -1 = not set on command line
+    long long   seed_override        = -1;  // -1 = not set on command line
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg(argv[i]);
@@ -45,6 +46,12 @@ int main(int argc, char* argv[]) {
                 return EXIT_FAILURE;
             }
             scenario_path = argv[++i];
+        } else if (arg == "--seed") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "--seed requires an integer argument\n");
+                return EXIT_FAILURE;
+            }
+            seed_override = std::atoll(argv[++i]);
         } else if (arg == "--status-port") {
             if (i + 1 >= argc) {
                 std::fprintf(stderr, "--status-port requires a port number\n");
@@ -104,6 +111,8 @@ int main(int argc, char* argv[]) {
 
     if (status_port_override >= 0)
         cfg.status_port = static_cast<uint16_t>(status_port_override);
+    if (seed_override >= 0)
+        cfg.rng_seed = static_cast<uint64_t>(seed_override);
 
     simuav::Simulator sim(cfg);
     g_sim = &sim;
