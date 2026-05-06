@@ -337,3 +337,58 @@ TEST(Battery, SoCClampedAtZero) {
     EXPECT_GE(s.remaining, 0.0);
     EXPECT_GE(s.voltage_v, 0.0);
 }
+
+TEST(GPS, SetFixTypeOverridesNextSample) {
+    simuav::sensors::GPSParams p;
+    p.update_rate_hz = 1000.0;  // always produce a new sample
+    simuav::sensors::GPS gps(p);
+
+    simuav::physics::State s;
+    simuav::sensors::GPSSample out;
+
+    gps.setFixType(0, 0);
+    s.time = 0.0;
+    gps.sample(s, out);
+    EXPECT_EQ(0u, out.fix_type);
+    EXPECT_EQ(0u, out.num_sats);
+
+    gps.setFixType(3, 12);
+    s.time = 1.0;
+    gps.sample(s, out);
+    EXPECT_EQ(3u, out.fix_type);
+    EXPECT_EQ(12u, out.num_sats);
+}
+
+TEST(GPS, SetPosNoiseStdOverridesEph) {
+    simuav::sensors::GPSParams p;
+    p.update_rate_hz = 1000.0;
+    simuav::sensors::GPS gps(p);
+
+    simuav::physics::State s;
+    simuav::sensors::GPSSample out;
+
+    gps.setPosNoiseStd(50.0, 80.0);
+    s.time = 0.0;
+    gps.sample(s, out);
+    EXPECT_FLOAT_EQ(50.0f, out.eph);
+    EXPECT_FLOAT_EQ(80.0f, out.epv);
+}
+
+TEST(Barometer, SetNoiseStdOverridesAltitudeNoise) {
+    simuav::sensors::BaroParams bp;
+    bp.noise_std_m = 0.0;  // start silent
+    simuav::sensors::Barometer baro(bp);
+
+    simuav::physics::State s;
+    s.position.z() = 0.0;  // at reference altitude
+
+    // With noise=0, altitude should equal reference.
+    auto sample0 = baro.sample(s);
+    EXPECT_NEAR(sample0.altitude_m, static_cast<float>(bp.alt_ref_m), 1e-3f);
+
+    // After override, noise is applied; we just check the setter doesn't crash
+    // and the baro still returns a finite value.
+    baro.setNoiseStd(5.0);
+    auto sample1 = baro.sample(s);
+    EXPECT_TRUE(std::isfinite(sample1.altitude_m));
+}

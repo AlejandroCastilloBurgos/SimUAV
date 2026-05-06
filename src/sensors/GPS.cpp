@@ -42,4 +42,14 @@ bool GPS::sample(const physics::State& state, GPSSample& out) {
     return true;
 }
 
+void GPS::setFixType(uint8_t fix_type, uint8_t num_sats) {
+    params_.fix_type = fix_type;
+    params_.num_sats = num_sats;
+}
+
+void GPS::setPosNoiseStd(double pos_std_m, double alt_std_m) {
+    params_.pos_noise_std_m = pos_std_m;
+    params_.alt_noise_std_m = alt_std_m;
+}
+
 }  // namespace simuav::sensors

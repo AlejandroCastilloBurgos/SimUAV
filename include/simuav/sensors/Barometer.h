@@ -24,6 +24,9 @@ public:
 
     BaroSample sample(const physics::State& state);
 
+    // Runtime override — applied on the next sample() call.
+    void setNoiseStd(double std_m);
+
 private:
     BaroParams params_;
 

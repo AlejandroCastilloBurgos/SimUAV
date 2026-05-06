@@ -39,6 +39,10 @@ public:
     // Returns false if it is not yet time for a new fix.
     bool sample(const physics::State& state, GPSSample& out);
 
+    // Runtime overrides — applied on the next sample() call.
+    void setFixType(uint8_t fix_type, uint8_t num_sats);
+    void setPosNoiseStd(double pos_std_m, double alt_std_m);
+
 private:
     GPSParams  params_;
     GPSSample  last_sample_;
