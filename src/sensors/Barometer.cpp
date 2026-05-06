@@ -27,4 +27,8 @@ BaroSample Barometer::sample(const physics::State& state) {
     return out;
 }
 
+void Barometer::setNoiseStd(double std_m) {
+    params_.noise_std_m = std_m;
+}
+
 }  // namespace simuav::sensors

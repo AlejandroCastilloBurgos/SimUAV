@@ -67,3 +67,34 @@ TEST(ScenarioLoader, EventsWithPastTimeFire) {
     EXPECT_DOUBLE_EQ(events[0].time_s, 0.0);
     EXPECT_EQ(events[0].type, "motor_lock");
 }
+
+TEST(ScenarioLoader, ParsesGpsFixTypeEvent) {
+    const std::string path = writeTempScenario(R"([
+        {"time_s": 5.0, "type": "gps_fix_type", "params": {"fix_type": 0, "num_sats": 0}}
+    ])");
+    const auto events = simuav::loadScenario(path);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].type, "gps_fix_type");
+    EXPECT_EQ(events[0].params.at("fix_type").get<int>(), 0);
+    EXPECT_EQ(events[0].params.at("num_sats").get<int>(), 0);
+}
+
+TEST(ScenarioLoader, ParsesGpsNoiseOverrideEvent) {
+    const std::string path = writeTempScenario(R"([
+        {"time_s": 10.0, "type": "gps_noise_override", "params": {"pos_std_m": 50.0, "alt_std_m": 80.0}}
+    ])");
+    const auto events = simuav::loadScenario(path);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].type, "gps_noise_override");
+    EXPECT_DOUBLE_EQ(events[0].params.at("pos_std_m").get<double>(), 50.0);
+}
+
+TEST(ScenarioLoader, ParsesBaroNoiseOverrideEvent) {
+    const std::string path = writeTempScenario(R"([
+        {"time_s": 15.0, "type": "baro_noise_override", "params": {"noise_std_m": 5.0}}
+    ])");
+    const auto events = simuav::loadScenario(path);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].type, "baro_noise_override");
+    EXPECT_DOUBLE_EQ(events[0].params.at("noise_std_m").get<double>(), 5.0);
+}

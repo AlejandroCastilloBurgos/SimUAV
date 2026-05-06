@@ -147,6 +147,17 @@ void Simulator::dispatchScenarioEvents() {
             );
         } else if (ev.type == "stop") {
             stop();
+        } else if (ev.type == "gps_fix_type") {
+            const uint8_t ft   = static_cast<uint8_t>(ev.params.at("fix_type").get<int>());
+            const uint8_t sats = static_cast<uint8_t>(ev.params.at("num_sats").get<int>());
+            gps_.setFixType(ft, sats);
+        } else if (ev.type == "gps_noise_override") {
+            gps_.setPosNoiseStd(
+                ev.params.at("pos_std_m").get<double>(),
+                ev.params.at("alt_std_m").get<double>()
+            );
+        } else if (ev.type == "baro_noise_override") {
+            baro_.setNoiseStd(ev.params.at("noise_std_m").get<double>());
         }
         ++scenario_idx_;
     }
