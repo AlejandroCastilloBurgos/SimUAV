@@ -78,6 +78,12 @@ jobs:
           git clone --depth=1 --branch v1.14.0 \
             https://github.com/PX4/PX4-Autopilot.git px4-autopilot
           cd px4-autopilot
+          # Annotated tags in shallow clones are tag objects, not commits, so
+          # git describe --match 'v[0-9]*' cannot resolve them and returns a
+          # bare hash, which makes px_update_git_header.py crash with IndexError.
+          # Replace the annotated tag with a lightweight tag at HEAD.
+          git tag -d v1.14.0 2>/dev/null || true
+          git tag v1.14.0
           git submodule update --init --recursive --depth=1
 
       # Use a venv to avoid PEP 668 "externally-managed-environment" errors
