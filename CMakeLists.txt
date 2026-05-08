@@ -7,6 +7,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
+option(BUILD_SANITIZERS "Enable AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+if(BUILD_SANITIZERS)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 # ------------- Dependencies -------------------------------------------------
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
