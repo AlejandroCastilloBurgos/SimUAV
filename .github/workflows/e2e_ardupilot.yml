@@ -81,13 +81,13 @@ jobs:
           # ArduCopter-4.5 has no requirements.txt at the repo root.
           # Only pymavlink is needed for our e2e script; pin the key to a
           # static version so the cache rebuilds only when explicitly bumped.
-          key: pip-venv-ap-v2-${{ runner.os }}
+          # v3: added pexpect — sim_vehicle.py imports it at startup.
+          key: pip-venv-ap-v3-${{ runner.os }}
           restore-keys: pip-venv-ap-
 
       - name: Install Python packages
-        # sim_vehicle.py and our e2e script only need pymavlink and future.
-        # ArduCopter-4.5 has no root-level requirements.txt.
-        run: .venv/bin/pip install --upgrade pip pymavlink future
+        # sim_vehicle.py imports pexpect at startup; future is a transitive dep.
+        run: .venv/bin/pip install --upgrade pip pymavlink future pexpect
 
       - name: Build ArduCopter SITL binary
         # Build once; the result is included in the cached ardupilot/ directory.
@@ -117,12 +117,13 @@ jobs:
             --gps-timeout 60 \
             --arm-timeout 90
 
-      - name: Upload telemetry on failure
+      - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: telemetry-ardupilot-e2e
+          name: logs-ardupilot-e2e
           path: |
             telemetry.ulg
             telemetry.json
+            /tmp/ap_sitl_stderr.log
           if-no-files-found: ignore

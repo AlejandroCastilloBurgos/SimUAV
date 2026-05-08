@@ -166,21 +166,30 @@ def main() -> int:
 
     ap_proc     = None
     simuav_proc = None
+    ap_stderr_log = None
 
     try:
         # 1. Start ArduPilot SITL (headless)
         _info(f"Starting ArduPilot SITL from {args.ardupilot_src} ...")
+        ap_stderr_log = open("/tmp/ap_sitl_stderr.log", "w")
         ap_proc = subprocess.Popen(
             ap_cmd,
             cwd=args.ardupilot_src,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=ap_stderr_log,
         )
 
         # Give ArduPilot time to bind UDP ports before SimUAV connects.
         time.sleep(5)
 
         if ap_proc.poll() is not None:
+            ap_stderr_log.flush()
+            try:
+                with open("/tmp/ap_sitl_stderr.log") as f:
+                    tail = f.read()[-4000:]
+                _info(f"ArduPilot stderr (last 4000 chars):\n{tail}")
+            except OSError:
+                pass
             _die(f"ArduPilot SITL exited early with code {ap_proc.returncode}")
 
         # 2. Start SimUAV with the ArduPilot config
@@ -232,6 +241,11 @@ def main() -> int:
             _terminate(simuav_proc)
         if ap_proc:
             _terminate(ap_proc)
+        try:
+            if ap_stderr_log is not None:
+                ap_stderr_log.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
