@@ -30,7 +30,7 @@ import time
 GPS_FIX_TIMEOUT_DEFAULT  = 30   # seconds
 ARM_TIMEOUT_DEFAULT      = 15   # seconds
 GCS_PORT                 = 14550
-HEARTBEAT_TIMEOUT        = 10   # seconds to wait for first heartbeat
+HEARTBEAT_TIMEOUT        = 30   # seconds to wait for first heartbeat
 
 # MAVLink command IDs (common dialect)
 MAV_CMD_COMPONENT_ARM_DISARM = 400

@@ -13,8 +13,6 @@ Prerequisites:
 
 ArduPilot SITL port mapping (default):
   5760  — SITL GCS TCP port (pymavlink connects here directly, no MAVProxy)
-  9002  — HIL sensor input (SimUAV sends HIL_SENSOR here)
-  9003  — HIL actuator output (SimUAV receives RC_CHANNELS_OVERRIDE here)
 
 Exit codes:
   0  all assertions passed
@@ -151,7 +149,6 @@ def main() -> int:
         "--frame", "quad",
         "--no-rebuild",
         "--no-mavproxy",    # skip MAVProxy; test connects directly to SITL TCP port
-        "--sim-address", "127.0.0.1",
     ]
     simuav_cmd = [simuav_bin, "--config", ARDUPILOT_CONFIG]
 
@@ -219,6 +216,16 @@ def main() -> int:
                  f"{HEARTBEAT_TIMEOUT} s — SITL may not have started")
         _info(f"Heartbeat received (system {mav.target_system}, "
               f"component {mav.target_component})")
+
+        # Request all streams at 10 Hz so GPS_RAW_INT flows regardless of
+        # ArduPilot's default stream-rate state for a freshly connected GCS.
+        mav.mav.request_data_stream_send(
+            mav.target_system,
+            mav.target_component,
+            mavutil.mavlink.MAV_DATA_STREAM_ALL,
+            10,   # 10 Hz
+            1,    # start
+        )
 
         # 4. Assert GPS fix
         _info(f"Waiting for GPS fix (timeout {args.gps_timeout} s) ...")
