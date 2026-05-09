@@ -70,7 +70,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: px4-autopilot
-          key: px4-v1.14-${{ runner.os }}
+          # v2: bust cache that was poisoned by a failed build (binary missing)
+          key: px4-v1.14-v2-${{ runner.os }}
 
       - name: Clone PX4 v1.14
         if: steps.cache-px4.outputs.cache-hit != 'true'
@@ -85,6 +86,26 @@ jobs:
           git tag -d v1.14.0 2>/dev/null || true
           git tag v1.14.0
           git submodule update --init --recursive --depth=1
+          # px_update_git_header.py also looks up nuttx-X.Y.Z tags in the NuttX
+          # submodule; shallow clone has none → IndexError on list[-1].
+          # Patch to fall back to a placeholder version when no tag is present.
+          python3 - <<'PYEOF'
+          import sys
+          path = 'src/lib/version/px_update_git_header.py'
+          try:
+              with open(path) as f:
+                  text = f.read()
+              old = "re.findall(r'nuttx-[0-9]+\\.[0-9]+\\.[0-9]+', nuttx_git_tags)[-1]"
+              new = "(re.findall(r'nuttx-[0-9]+\\.[0-9]+\\.[0-9]+', nuttx_git_tags) or ['nuttx-12.0.0'])[-1]"
+              if old in text:
+                  with open(path, 'w') as f:
+                      f.write(text.replace(old, new))
+                  print('Patched px_update_git_header.py: NuttX shallow-clone fallback')
+              else:
+                  print('WARNING: nuttx patch pattern not found — may have changed upstream')
+          except FileNotFoundError:
+              print(f'WARNING: {path} not found', file=sys.stderr)
+          PYEOF
 
       # Use a venv to avoid PEP 668 "externally-managed-environment" errors
       # that occur with Python 3.12+ system pip.

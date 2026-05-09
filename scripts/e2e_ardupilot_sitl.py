@@ -12,7 +12,7 @@ Prerequisites:
   cmake --build build (SimUAV binary must exist at ./build/simuav)
 
 ArduPilot SITL port mapping (default):
-  14550 — GCS UDP port (pymavlink connects here)
+  5760  — SITL GCS TCP port (pymavlink connects here directly, no MAVProxy)
   9002  — HIL sensor input (SimUAV sends HIL_SENSOR here)
   9003  — HIL actuator output (SimUAV receives RC_CHANNELS_OVERRIDE here)
 
@@ -38,8 +38,8 @@ import time
 
 GPS_FIX_TIMEOUT_DEFAULT  = 60   # seconds — ArduPilot pre-arm checks take longer
 ARM_TIMEOUT_DEFAULT      = 90   # seconds
-GCS_PORT                 = 14550
-HEARTBEAT_TIMEOUT        = 15   # seconds to wait for first heartbeat
+SITL_TCP_PORT            = 5760  # ArduCopter SITL default GCS TCP port
+HEARTBEAT_TIMEOUT        = 20   # seconds to wait for first heartbeat
 
 # MAVLink command IDs (common dialect)
 MAV_CMD_COMPONENT_ARM_DISARM = 400
@@ -137,8 +137,11 @@ def main() -> int:
     if not os.path.isfile(ARDUPILOT_CONFIG):
         _die(f"SimUAV ArduPilot config not found: {ARDUPILOT_CONFIG}", code=2)
 
-    # ArduPilot SITL binary: Tools/autotest/sim_vehicle.py wrapper or direct
-    sim_vehicle = os.path.join(args.ardupilot_src, "Tools", "autotest", "sim_vehicle.py")
+    # ArduPilot SITL binary: Tools/autotest/sim_vehicle.py wrapper or direct.
+    # abspath is required: subprocess sets cwd=ardupilot_src, so a relative path
+    # would be resolved inside ardupilot/ and Python would exit 2 ("can't open file").
+    sim_vehicle = os.path.abspath(
+        os.path.join(args.ardupilot_src, "Tools", "autotest", "sim_vehicle.py"))
     if not os.path.isfile(sim_vehicle):
         _die(f"ArduPilot sim_vehicle.py not found at: {sim_vehicle}", code=2)
 
@@ -147,8 +150,8 @@ def main() -> int:
         "--vehicle", "ArduCopter",
         "--frame", "quad",
         "--no-rebuild",
+        "--no-mavproxy",    # skip MAVProxy; test connects directly to SITL TCP port
         "--sim-address", "127.0.0.1",
-        "--out", f"udpout:127.0.0.1:{GCS_PORT}",
     ]
     simuav_cmd = [simuav_bin, "--config", ARDUPILOT_CONFIG]
 
@@ -179,7 +182,7 @@ def main() -> int:
             stderr=ap_stderr_log,
         )
 
-        # Give ArduPilot time to bind UDP ports before SimUAV connects.
+        # Give ArduPilot time to start before SimUAV connects.
         time.sleep(5)
 
         if ap_proc.poll() is not None:
@@ -205,15 +208,15 @@ def main() -> int:
         if simuav_proc.poll() is not None:
             _die(f"SimUAV exited early with code {simuav_proc.returncode}")
 
-        # 3. Connect GCS via pymavlink
-        _info(f"Connecting to GCS port {GCS_PORT} ...")
-        mav = mavutil.mavlink_connection(f"udpin:0.0.0.0:{GCS_PORT}")
+        # 3. Connect GCS directly to the SITL TCP port (no MAVProxy needed)
+        _info(f"Connecting to ArduCopter SITL on TCP port {SITL_TCP_PORT} ...")
+        mav = mavutil.mavlink_connection(f"tcp:127.0.0.1:{SITL_TCP_PORT}")
 
         _info(f"Waiting for heartbeat (timeout {HEARTBEAT_TIMEOUT} s) ...")
         hb = mav.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT)
         if hb is None:
-            _die(f"No MAVLink heartbeat from ArduPilot within {HEARTBEAT_TIMEOUT} s — "
-                 "SITL may not have started")
+            _die(f"No MAVLink heartbeat on TCP:{SITL_TCP_PORT} within "
+                 f"{HEARTBEAT_TIMEOUT} s — SITL may not have started")
         _info(f"Heartbeat received (system {mav.target_system}, "
               f"component {mav.target_component})")
 
